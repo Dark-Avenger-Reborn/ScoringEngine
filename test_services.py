@@ -1,0 +1,49 @@
+import subprocess
+import random
+import paramiko
+import threading
+import requests
+
+class Services:
+    def __init__(self):
+        self.ip = self.rotate_private_ips()
+
+    def rotate_private_ips(self):
+        self.ip = f"10.0.0.{random.randint(2,254)}"
+        subprocess.run(f"ifconfig eth0 {self.ip}", shell=True)
+
+    def ssh_connection(self, username, password, ip):
+        try:
+            client = paramiko.SSHClient()
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            client.connect(ip, username=username, password=password, timeout=20)
+
+            stdin, stdout, stderr = client.exec_command('ls')
+            output = stdout.read().decode()
+            error = stderr.read().decode()
+            
+            client.close()
+
+            if error:
+                return (False, error)
+            return (True, output)
+        except Exception as e:
+            return (False, str(e))
+
+    def web_request(self, url):
+        try:
+            response = requests.get(url, timeout=20)
+            if response.status_code == 200:
+                return (True, response.text)
+            return (False, response.reason)
+        except Exception as e:
+            return (False, str(e))
+
+    def ping_host(self, ip):
+        try:
+            response = subprocess.run(['ping', '-c', '4', ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, timeout=20)
+            if response.returncode == 0:
+                return (True, response.stdout.decode())
+            return (False, response.stderr.decode())
+        except Exception as e:
+            return (False, str(e))

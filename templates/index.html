@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Status Matrix</title>
+    <style>
+      body { font-family: Arial, sans-serif; padding: 20px; }
+      table { border-collapse: collapse; width: 100%; max-width: 1000px; margin: 0 auto; }
+      th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+      th { background: #f4f4f4; }
+      td.ok { background: #d4edda; color: #155724; } /* green */
+      td.fail { background: #f8d7da; color: #721c24; } /* red */
+      td.unknown { background: #fff3cd; color: #856404; } /* yellow for Not tested */
+      caption { font-size: 1.2em; margin-bottom: 8px; }
+      @media (max-width: 600px) {
+        table { font-size: 12px; }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Systems Status Matrix</h1>
+    <div id="tableContainer">
+      <!-- Table will be populated by static/index_table.js -->
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='index_table.js') }}"></script>
+  </body>
+</html>

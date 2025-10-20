@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1">
+		<title>Leaderboard</title>
+		<style>
+			body { font-family: Arial, sans-serif; padding: 20px; }
+			#chartContainer { max-width: 1000px; margin: 0 auto; }
+		</style>
+	</head>
+	<body>
+		<h1>Live Leaderboard</h1>
+		<div id="chartContainer">
+			<canvas id="leaderboardChart" width="800" height="400"></canvas>
+		</div>
+
+		<!-- CDN: Chart.js and Socket.IO client -->
+		<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+		<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+		<script src="{{ url_for('static', filename='leaderboard.js') }}"></script>
+	</body>
+ </html>
