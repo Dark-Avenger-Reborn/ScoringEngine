@@ -12,11 +12,11 @@ class Services:
         self.ip = f"10.0.0.{random.randint(2,254)}"
         subprocess.run(f"ifconfig eth0 {self.ip}", shell=True)
 
-    def ssh_connection(self, username, password, ip):
+    def ssh_connection(self, username, password, ip, port=22):
         try:
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            client.connect(ip, username=username, password=password, timeout=20)
+            client.connect(ip, port=port, username=username, password=password, timeout=20)
 
             stdin, stdout, stderr = client.exec_command('ls')
             output = stdout.read().decode()

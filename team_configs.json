@@ -1,0 +1,46 @@
+{
+  "team1": {
+    "ubuntu1": {
+      "ssh": {
+        "username": "sysadmin",
+        "password": "changeme",
+        "port": 22
+      },
+      "web": {
+        "port": 80
+      }
+    },
+    "ubuntu2": {
+      "ssh": {
+        "username": "sysadmin",
+        "password": "changeme",
+        "port": 22
+      },
+      "web": {
+        "port": 80
+      }
+    }
+  },
+  "team2": {
+    "ubuntu1": {
+      "ssh": {
+        "username": "sysadmin",
+        "password": "changeme",
+        "port": 22
+      },
+      "web": {
+        "port": 80
+      }
+    },
+    "ubuntu2": {
+      "ssh": {
+        "username": "sysadmin",
+        "password": "changeme",
+        "port": 22
+      },
+      "web": {
+        "port": 80
+      }
+    }
+  }
+}

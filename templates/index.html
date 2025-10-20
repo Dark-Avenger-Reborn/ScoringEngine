@@ -6,15 +6,17 @@
     <title>Status Matrix</title>
     <style>
       body { font-family: Arial, sans-serif; padding: 20px; }
-      table { border-collapse: collapse; width: 100%; max-width: 1000px; margin: 0 auto; }
-      th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+      table { border-collapse: collapse; width: 100%; max-width: 1200px; margin: 0 auto; }
+      th, td { border: 1px solid #ddd; padding: 8px; text-align: center; font-size: 0.9em; }
       th { background: #f4f4f4; }
-      td.ok { background: #d4edda; color: #155724; } /* green */
-      td.fail { background: #f8d7da; color: #721c24; } /* red */
+      td.ok { background: #d4edda; color: #155724; cursor: pointer; } /* green */
+      td.fail { background: #f8d7da; color: #721c24; cursor: pointer; } /* red */
       td.unknown { background: #fff3cd; color: #856404; } /* yellow for Not tested */
-      caption { font-size: 1.2em; margin-bottom: 8px; }
+      caption { font-size: 1.2em; margin-bottom: 8px; font-weight: bold; }
+      .error-detail { font-size: 0.75em; display: block; margin-top: 4px; font-style: italic; }
       @media (max-width: 600px) {
-        table { font-size: 12px; }
+        table { font-size: 11px; }
+        .error-detail { font-size: 0.7em; }
       }
     </style>
   </head>

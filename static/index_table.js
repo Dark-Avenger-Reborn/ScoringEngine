@@ -59,15 +59,17 @@
 
         if (err === 'Success') {
           td.className = 'ok';
-          td.textContent = 'OK';
+          td.innerHTML = 'OK';
         } else if (err === 'Not tested') {
           td.className = 'unknown';
-          td.textContent = 'Not tested';
+          td.innerHTML = 'Not tested';
         } else {
           td.className = 'fail';
-          td.textContent = 'FAIL';
-          // Show a short hint on hover
-          td.title = String(err).slice(0, 200);
+          // Show status and a truncated error message inline
+          const errSnippet = String(err).slice(0, 60);
+          td.innerHTML = `FAIL<span class="error-detail">${errSnippet}${err.length > 60 ? '...' : ''}</span>`;
+          // Full error in title for hover
+          td.title = String(err);
         }
 
         row.appendChild(td);
@@ -102,16 +104,17 @@
         if (!td) return;
         if (err === 'Success') {
           td.className = 'ok';
-          td.textContent = 'OK';
+          td.innerHTML = 'OK';
           td.title = '';
         } else if (err === 'Not tested') {
           td.className = 'unknown';
-          td.textContent = 'Not tested';
+          td.innerHTML = 'Not tested';
           td.title = '';
         } else {
           td.className = 'fail';
-          td.textContent = 'FAIL';
-          td.title = String(err).slice(0, 200);
+          const errSnippet = String(err).slice(0, 60);
+          td.innerHTML = `FAIL<span class="error-detail">${errSnippet}${err.length > 60 ? '...' : ''}</span>`;
+          td.title = String(err);
         }
       });
     });

@@ -20,6 +20,7 @@ class Grader:
         # lock during initialization to avoid races with concurrently-starting
         # grader threads.
         self.sio = sio
+        self.is_grading = False
         initial = {
             "team1": {
                 "ubuntu1ping": {"error": "Not tested", "score": 0},
@@ -119,21 +120,46 @@ class Grader:
 
     def grade_projects(self):
         print("Grading projects...")
+        self.is_grading = True
         services = Services()
         thread_list = []
+        # Load team configuration for this grading cycle
+        try:
+            with open("team_configs.json", "r") as f:
+                team_cfg = json.load(f)
+        except Exception:
+            # Fallback to reasonable defaults with new structure
+            team_cfg = {
+                "team1": {
+                    "ubuntu1": {"ssh": {"username": "sysadmin", "password": "changeme", "port": 22}, "web": {"port": 80}},
+                    "ubuntu2": {"ssh": {"username": "sysadmin", "password": "changeme", "port": 22}, "web": {"port": 80}},
+                },
+                "team2": {
+                    "ubuntu1": {"ssh": {"username": "sysadmin", "password": "changeme", "port": 22}, "web": {"port": 80}},
+                    "ubuntu2": {"ssh": {"username": "sysadmin", "password": "changeme", "port": 22}, "web": {"port": 80}},
+                },
+            }
 
         for team in [1, 2]:
-            username = f"sysadmin"
-            password = f"changeme"
+            team_key = f"team{team}"
             for service in ["ping", "ssh", "web"]:
                 for instance in [20, 30]:
+                    # Map instance IP last octet to ubuntu1 (20) or ubuntu2 (30)
+                    ubuntu_key = "ubuntu1" if instance == 20 else "ubuntu2"
+                    ubuntu_cfg = team_cfg.get(team_key, {}).get(ubuntu_key, {})
+                    
+                    ssh_user = ubuntu_cfg.get("ssh", {}).get("username", "sysadmin")
+                    ssh_pass = ubuntu_cfg.get("ssh", {}).get("password", "changeme")
+                    ssh_port = ubuntu_cfg.get("ssh", {}).get("port", 22)
+                    web_port = ubuntu_cfg.get("web", {}).get("port", 80)
+                    
                     ip = f"10.0.{team}.{instance}"
                     if service == "ssh":
-                        t = threading.Thread(target=self.grade_ssh, args=(team, username, password, ip, instance, services))
+                        t = threading.Thread(target=self.grade_ssh, args=(team, ssh_user, ssh_pass, ssh_port, ip, instance, services))
                     elif service == "ping":
-                        t = threading.Thread(target=self.grade_ping, args=(team, username, password, ip, instance, services))
+                        t = threading.Thread(target=self.grade_ping, args=(team, ip, instance, services))
                     elif service == "web":
-                        t = threading.Thread(target=self.grade_web, args=(team, username, password, ip, instance, services))
+                        t = threading.Thread(target=self.grade_web, args=(team, web_port, ip, instance, services))
                     else:
                         t = None
 
@@ -150,24 +176,25 @@ class Grader:
             scores = json.load(score_file)
 
         self.sio.emit("scores", scores, namespace="/")
+        self.is_grading = False
 
 
-    def grade_ssh(self, team, username, password, ip, instance, services):
-        result = services.ssh_connection(username, password, ip)
+    def grade_ssh(self, team, username, password, port, ip, instance, services):
+        result = services.ssh_connection(username, password, ip, port=port)
         if result[0]:
             self.append_scores(f"team{team}", f"ubuntu{first_n_digits(instance, 1)-1}ssh", "Success", 10)
         else:
             self.append_scores(f"team{team}", f"ubuntu{first_n_digits(instance, 1)-1}ssh", result[1], 1)
 
-    def grade_ping(self, team, username, password, ip, instance, services):
+    def grade_ping(self, team, ip, instance, services):
         result = services.ping_host(ip)
         if result[0]:
             self.append_scores(f"team{team}", f"ubuntu{first_n_digits(instance, 1)-1}ping", "Success", 10)
         else:
             self.append_scores(f"team{team}", f"ubuntu{first_n_digits(instance, 1)-1}ping", result[1], 0)
 
-    def grade_web(self, team, username, password, ip, instance, services):
-        url = f"http://{ip}"
+    def grade_web(self, team, port, ip, instance, services):
+        url = f"http://{ip}:{port}"
         result = services.web_request(url)
         if result[0]:
             self.append_scores(f"team{team}", f"ubuntu{first_n_digits(instance, 1)-1}web", "Success", 10)

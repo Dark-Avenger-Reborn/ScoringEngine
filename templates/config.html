@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1">
+		<title>Team Configuration</title>
+		<style>
+			body { font-family: Arial, sans-serif; padding: 20px; }
+			fieldset { margin-bottom: 16px; }
+			label { display: block; margin: 8px 0 4px; }
+			input { width: 100%; max-width: 320px; padding: 6px; }
+			.row { display: flex; flex-wrap: wrap; gap: 24px; }
+			.card { border: 1px solid #ddd; padding: 16px; border-radius: 8px; min-width: 280px; }
+			.actions { margin-top: 16px; }
+			button { padding: 8px 12px; }
+			.status { margin-left: 12px; font-size: 0.9em; }
+			.error { color: #a94442; }
+			.success { color: #2e7d32; }
+			.disabled { opacity: 0.6; pointer-events: none; }
+			/* Status table */
+			table { border-collapse: collapse; width: 100%; max-width: 1000px; margin-top: 24px; }
+			th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+			th { background: #f4f4f4; }
+			td.ok { background: #d4edda; color: #155724; }
+			td.fail { background: #f8d7da; color: #721c24; }
+			td.unknown { background: #fff3cd; color: #856404; }
+			.small { font-size: 0.85em; }
+			.error-detail { font-size: 0.8em; display: block; margin-top: 4px; font-style: italic; }
+		</style>
+	</head>
+  <body>
+    <h1>Team Configuration</h1>
+    <p>Update the SSH credentials and ports for your team's systems. Changes are disabled while grading is running.</p>
+
+    <div id="gradingBanner" style="display:none; padding:8px; background:#fff3cd; color:#856404; border:1px solid #ffeeba; margin-bottom:12px;">
+      Grading is currently in progress. Editing is temporarily disabled.
+    </div>
+
+    <form id="configForm">
+      <div class="row">
+        <div class="card">
+          <h2 id="teamHeader">Your Team</h2>
+          
+          <h3>Ubuntu 1</h3>
+          <fieldset>
+            <legend>SSH</legend>
+            <label for="ubuntu1_ssh_username">Username</label>
+            <input id="ubuntu1_ssh_username" name="ubuntu1.ssh.username" type="text" required>
+            <label for="ubuntu1_ssh_password">Password</label>
+            <input id="ubuntu1_ssh_password" name="ubuntu1.ssh.password" type="password" required>
+            <label for="ubuntu1_ssh_port">Port</label>
+            <input id="ubuntu1_ssh_port" name="ubuntu1.ssh.port" type="number" min="1" max="65535" required>
+          </fieldset>
+          <fieldset>
+            <legend>Web</legend>
+            <label for="ubuntu1_web_port">Port</label>
+            <input id="ubuntu1_web_port" name="ubuntu1.web.port" type="number" min="1" max="65535" required>
+          </fieldset>
+        </div>
+
+        <div class="card">
+          <h2>&nbsp;</h2>
+          
+          <h3>Ubuntu 2</h3>
+          <fieldset>
+            <legend>SSH</legend>
+            <label for="ubuntu2_ssh_username">Username</label>
+            <input id="ubuntu2_ssh_username" name="ubuntu2.ssh.username" type="text" required>
+            <label for="ubuntu2_ssh_password">Password</label>
+            <input id="ubuntu2_ssh_password" name="ubuntu2.ssh.password" type="password" required>
+            <label for="ubuntu2_ssh_port">Port</label>
+            <input id="ubuntu2_ssh_port" name="ubuntu2.ssh.port" type="number" min="1" max="65535" required>
+          </fieldset>
+          <fieldset>
+            <legend>Web</legend>
+            <label for="ubuntu2_web_port">Port</label>
+            <input id="ubuntu2_web_port" name="ubuntu2.web.port" type="number" min="1" max="65535" required>
+          </fieldset>
+        </div>
+      </div>
+			<div class="actions">
+				<button type="submit" id="saveBtn">Save Changes</button>
+				<span class="status" id="saveStatus"></span>
+			</div>
+		</form>
+
+		<h2>Current Check Status</h2>
+		<p class="small">Cells show the last result for each check. Hover to see the full error message.</p>
+		<div id="statusTableContainer"></div>
+
+		<script>
+			const form = document.getElementById('configForm');
+			const saveBtn = document.getElementById('saveBtn');
+			const saveStatus = document.getElementById('saveStatus');
+			const gradingBanner = document.getElementById('gradingBanner');
+			const teamHeader = document.getElementById('teamHeader');
+
+			let currentTeam = null;
+
+			async function fetchConfigs() {
+				const res = await fetch('/api/team-configs');
+				if (!res.ok) throw new Error('Failed to load team configs');
+				return res.json();
+			}
+
+			async function fetchGradingStatus() {
+				try {
+					const res = await fetch('/api/grading-status');
+					if (!res.ok) return { isGrading: false };
+					return res.json();
+				} catch { return { isGrading: false }; }
+			}
+
+			function setFormDisabled(disabled) {
+				form.querySelectorAll('input, button').forEach(el => {
+					el.disabled = disabled;
+				});
+				gradingBanner.style.display = disabled ? 'block' : 'none';
+				form.classList.toggle('disabled', disabled);
+			}
+
+			function applyConfigs(cfg) {
+				// cfg should have one key: team1 or team2
+				const teamKey = Object.keys(cfg)[0];
+				if (!teamKey) return;
+				currentTeam = teamKey;
+				teamHeader.textContent = teamKey === 'team1' ? 'Team 1' : 'Team 2';
+				
+				const teamData = cfg[teamKey] || { ubuntu1: {ssh: {}, web: {}}, ubuntu2: {ssh: {}, web: {}} };
+				const u1 = teamData.ubuntu1 || { ssh: {}, web: {} };
+				const u2 = teamData.ubuntu2 || { ssh: {}, web: {} };
+				
+				document.getElementById('ubuntu1_ssh_username').value = u1.ssh.username || '';
+				document.getElementById('ubuntu1_ssh_password').value = u1.ssh.password || '';
+				document.getElementById('ubuntu1_ssh_port').value = u1.ssh.port ?? 22;
+				document.getElementById('ubuntu1_web_port').value = u1.web.port ?? 80;
+				
+				document.getElementById('ubuntu2_ssh_username').value = u2.ssh.username || '';
+				document.getElementById('ubuntu2_ssh_password').value = u2.ssh.password || '';
+				document.getElementById('ubuntu2_ssh_port').value = u2.ssh.port ?? 22;
+				document.getElementById('ubuntu2_web_port').value = u2.web.port ?? 80;
+			}
+
+			function readForm() {
+				if (!currentTeam) return {};
+				return {
+					[currentTeam]: {
+						ubuntu1: {
+							ssh: {
+								username: document.getElementById('ubuntu1_ssh_username').value,
+								password: document.getElementById('ubuntu1_ssh_password').value,
+								port: parseInt(document.getElementById('ubuntu1_ssh_port').value, 10)
+							},
+							web: { port: parseInt(document.getElementById('ubuntu1_web_port').value, 10) }
+						},
+						ubuntu2: {
+							ssh: {
+								username: document.getElementById('ubuntu2_ssh_username').value,
+								password: document.getElementById('ubuntu2_ssh_password').value,
+								port: parseInt(document.getElementById('ubuntu2_ssh_port').value, 10)
+							},
+							web: { port: parseInt(document.getElementById('ubuntu2_web_port').value, 10) }
+						}
+					}
+				};
+			}
+
+			async function init() {
+				// Initial load
+				const [cfg, status] = await Promise.all([fetchConfigs(), fetchGradingStatus()]);
+				applyConfigs(cfg);
+				setFormDisabled(Boolean(status.isGrading));
+			}
+
+			form.addEventListener('submit', async (e) => {
+				e.preventDefault();
+				saveStatus.textContent = '';
+				saveStatus.className = 'status';
+				saveBtn.disabled = true;
+				try {
+					const payload = readForm();
+					const res = await fetch('/api/team-configs', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(payload)
+					});
+					if (res.status === 409) {
+						const body = await res.json();
+						saveStatus.textContent = body.error || 'Grading in progress; try again later.';
+						saveStatus.classList.add('error');
+					} else if (!res.ok) {
+						const body = await res.json().catch(() => ({}));
+						saveStatus.textContent = body.error || 'Failed to save changes.';
+						saveStatus.classList.add('error');
+					} else {
+						saveStatus.textContent = 'Saved!';
+						saveStatus.classList.add('success');
+					}
+				} catch (err) {
+					saveStatus.textContent = 'Error saving changes.';
+					saveStatus.classList.add('error');
+				} finally {
+					saveBtn.disabled = false;
+					// Refresh grading status just in case
+					const status = await fetchGradingStatus();
+					setFormDisabled(Boolean(status.isGrading));
+				}
+			});
+
+			// Poll grading status to disable form while running
+			setInterval(async () => {
+				const status = await fetchGradingStatus();
+				setFormDisabled(Boolean(status.isGrading));
+			}, 5000);
+
+			// Build and update a status table for this team
+			function buildStatusTable(teamKey, scores) {
+				const container = document.getElementById('statusTableContainer');
+				container.innerHTML = '';
+				const table = document.createElement('table');
+				const thead = document.createElement('thead');
+				const trh = document.createElement('tr');
+				['System', 'Ping', 'SSH', 'Web'].forEach(h => { const th = document.createElement('th'); th.textContent = h; trh.appendChild(th); });
+				thead.appendChild(trh);
+				table.appendChild(thead);
+				const tbody = document.createElement('tbody');
+				['ubuntu1', 'ubuntu2'].forEach(u => {
+					const tr = document.createElement('tr');
+					const sysTh = document.createElement('th'); sysTh.textContent = u.toUpperCase(); tr.appendChild(sysTh);
+					['ping', 'ssh', 'web'].forEach(svc => {
+						const td = document.createElement('td');
+						const key = `${u}${svc}`; // e.g., ubuntu1ping
+						const svcObj = (scores[teamKey] || {})[key];
+						const errStr = String(svcObj ? svcObj.error : 'Not tested');
+						if (errStr === 'Success') {
+							td.className = 'ok';
+							td.textContent = 'Success';
+						} else if (errStr === 'Not tested') {
+							td.className = 'unknown';
+							td.textContent = 'Not tested';
+						} else {
+							td.className = 'fail';
+							td.textContent = 'Fail';
+							const detail = document.createElement('span');
+							detail.className = 'error-detail';
+							const snippet = errStr.slice(0, 120);
+							detail.textContent = snippet + (errStr.length > 120 ? '…' : '');
+							td.appendChild(detail);
+							td.title = errStr;
+						}
+						tr.appendChild(td);
+					});
+					tbody.appendChild(tr);
+				});
+				table.appendChild(tbody);
+				container.appendChild(table);
+			}
+
+			async function fetchTeamScores() {
+				const r = await fetch('/api/team-scores');
+				if (!r.ok) return {};
+				return r.json();
+			}
+
+			async function initStatus() {
+				try {
+					const teamKey = currentTeam;
+					if (!teamKey) return;
+					const data = await fetchTeamScores();
+					buildStatusTable(teamKey, data);
+				} catch {}
+			}
+
+			// Kick off UI
+			init().then(initStatus).catch(err => {
+				saveStatus.textContent = 'Failed to load configs. Please refresh.';
+				saveStatus.classList.add('error');
+			});
+
+			// Live updates via Socket.IO
+			(function(){
+				const s = document.createElement('script'); s.src = 'https://cdn.socket.io/4.7.2/socket.io.min.js'; s.onload = () => {
+					const socket = io();
+					socket.on('scores', (scores) => {
+						if (!currentTeam) return;
+						buildStatusTable(currentTeam, scores);
+					});
+				}; document.body.appendChild(s);
+			})();
+		</script>
+	</body>
+ </html>
