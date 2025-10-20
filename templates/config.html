@@ -1,92 +1,104 @@
+
 <!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width,initial-scale=1">
 		<title>Team Configuration</title>
-		<style>
-			body { font-family: Arial, sans-serif; padding: 20px; }
-			fieldset { margin-bottom: 16px; }
-			label { display: block; margin: 8px 0 4px; }
-			input { width: 100%; max-width: 320px; padding: 6px; }
-			.row { display: flex; flex-wrap: wrap; gap: 24px; }
-			.card { border: 1px solid #ddd; padding: 16px; border-radius: 8px; min-width: 280px; }
-			.actions { margin-top: 16px; }
-			button { padding: 8px 12px; }
-			.status { margin-left: 12px; font-size: 0.9em; }
-			.error { color: #a94442; }
-			.success { color: #2e7d32; }
-			.disabled { opacity: 0.6; pointer-events: none; }
-			/* Status table */
-			table { border-collapse: collapse; width: 100%; max-width: 1000px; margin-top: 24px; }
-			th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-			th { background: #f4f4f4; }
-			td.ok { background: #d4edda; color: #155724; }
-			td.fail { background: #f8d7da; color: #721c24; }
-			td.unknown { background: #fff3cd; color: #856404; }
-			.small { font-size: 0.85em; }
-			.error-detail { font-size: 0.8em; display: block; margin-top: 4px; font-style: italic; }
-		</style>
+		<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 	</head>
-  <body>
-    <h1>Team Configuration</h1>
-    <p>Update the SSH credentials and ports for your team's systems. Changes are disabled while grading is running.</p>
-
-    <div id="gradingBanner" style="display:none; padding:8px; background:#fff3cd; color:#856404; border:1px solid #ffeeba; margin-bottom:12px;">
-      Grading is currently in progress. Editing is temporarily disabled.
-    </div>
-
-    <form id="configForm">
-      <div class="row">
-        <div class="card">
-          <h2 id="teamHeader">Your Team</h2>
-          
-          <h3>Ubuntu 1</h3>
-          <fieldset>
-            <legend>SSH</legend>
-            <label for="ubuntu1_ssh_username">Username</label>
-            <input id="ubuntu1_ssh_username" name="ubuntu1.ssh.username" type="text" required>
-            <label for="ubuntu1_ssh_password">Password</label>
-            <input id="ubuntu1_ssh_password" name="ubuntu1.ssh.password" type="password" required>
-            <label for="ubuntu1_ssh_port">Port</label>
-            <input id="ubuntu1_ssh_port" name="ubuntu1.ssh.port" type="number" min="1" max="65535" required>
-          </fieldset>
-          <fieldset>
-            <legend>Web</legend>
-            <label for="ubuntu1_web_port">Port</label>
-            <input id="ubuntu1_web_port" name="ubuntu1.web.port" type="number" min="1" max="65535" required>
-          </fieldset>
-        </div>
-
-        <div class="card">
-          <h2>&nbsp;</h2>
-          
-          <h3>Ubuntu 2</h3>
-          <fieldset>
-            <legend>SSH</legend>
-            <label for="ubuntu2_ssh_username">Username</label>
-            <input id="ubuntu2_ssh_username" name="ubuntu2.ssh.username" type="text" required>
-            <label for="ubuntu2_ssh_password">Password</label>
-            <input id="ubuntu2_ssh_password" name="ubuntu2.ssh.password" type="password" required>
-            <label for="ubuntu2_ssh_port">Port</label>
-            <input id="ubuntu2_ssh_port" name="ubuntu2.ssh.port" type="number" min="1" max="65535" required>
-          </fieldset>
-          <fieldset>
-            <legend>Web</legend>
-            <label for="ubuntu2_web_port">Port</label>
-            <input id="ubuntu2_web_port" name="ubuntu2.web.port" type="number" min="1" max="65535" required>
-          </fieldset>
-        </div>
-      </div>
-			<div class="actions">
-				<button type="submit" id="saveBtn">Save Changes</button>
-				<span class="status" id="saveStatus"></span>
+	<body>
+		<nav class="navbar">
+			<div class="container nav-inner">
+				<a class="brand" href="{{ url_for('index') }}">ScoringEngine</a>
+						<div class="nav-links">
+							<a href="{{ url_for('index') }}">Status</a>
+							<a href="{{ url_for('leaderboard') }}">Leaderboard</a>
+							<a class="active" href="{{ url_for('config') }}">Team Config</a>
+							{% if session.get('logged_in') %}
+								<a href="{{ url_for('logout') }}">Logout</a>
+							{% else %}
+								<a href="{{ url_for('login') }}">Login</a>
+							{% endif %}
+						</div>
 			</div>
-		</form>
+		</nav>
 
-		<h2>Current Check Status</h2>
-		<p class="small">Cells show the last result for each check. Hover to see the full error message.</p>
-		<div id="statusTableContainer"></div>
+		<main class="container">
+			<div class="page-header">
+				<h1>Team Configuration</h1>
+				<div class="btn-group">
+					<a class="btn btn-secondary" href="{{ url_for('index') }}">Status Matrix</a>
+					<a class="btn btn-outline" href="{{ url_for('leaderboard') }}">View Leaderboard</a>
+				</div>
+			</div>
+
+			<p class="subtle mb-3">Update the SSH credentials and ports for your team's systems. Changes are disabled while grading is running.</p>
+
+			<div id="gradingBanner" class="alert warn mb-3" style="display:none;">
+				Grading is currently in progress. Editing is temporarily disabled.
+			</div>
+
+			<form id="configForm">
+				<div class="grid two">
+					<div class="card">
+						<div class="card-header" id="teamHeader">Your Team</div>
+						<div class="card-body">
+							<h3 class="mb-2">Ubuntu 1</h3>
+							<fieldset class="mb-2">
+								<legend>SSH</legend>
+								<label for="ubuntu1_ssh_username">Username</label>
+								<input id="ubuntu1_ssh_username" name="ubuntu1.ssh.username" type="text" required>
+								<label for="ubuntu1_ssh_password">Password</label>
+								<input id="ubuntu1_ssh_password" name="ubuntu1.ssh.password" type="password" required>
+								<label for="ubuntu1_ssh_port">Port</label>
+								<input id="ubuntu1_ssh_port" name="ubuntu1.ssh.port" type="number" min="1" max="65535" required>
+							</fieldset>
+							<fieldset>
+								<legend>Web</legend>
+								<label for="ubuntu1_web_port">Port</label>
+								<input id="ubuntu1_web_port" name="ubuntu1.web.port" type="number" min="1" max="65535" required>
+							</fieldset>
+						</div>
+					</div>
+
+					<div class="card">
+						<div class="card-header">&nbsp;</div>
+						<div class="card-body">
+							<h3 class="mb-2">Ubuntu 2</h3>
+							<fieldset class="mb-2">
+								<legend>SSH</legend>
+								<label for="ubuntu2_ssh_username">Username</label>
+								<input id="ubuntu2_ssh_username" name="ubuntu2.ssh.username" type="text" required>
+								<label for="ubuntu2_ssh_password">Password</label>
+								<input id="ubuntu2_ssh_password" name="ubuntu2.ssh.password" type="password" required>
+								<label for="ubuntu2_ssh_port">Port</label>
+								<input id="ubuntu2_ssh_port" name="ubuntu2.ssh.port" type="number" min="1" max="65535" required>
+							</fieldset>
+							<fieldset>
+								<legend>Web</legend>
+								<label for="ubuntu2_web_port">Port</label>
+								<input id="ubuntu2_web_port" name="ubuntu2.web.port" type="number" min="1" max="65535" required>
+							</fieldset>
+						</div>
+					</div>
+				</div>
+				<div class="actions">
+					<button type="submit" id="saveBtn" class="btn btn-primary">Save Changes</button>
+					<span class="status" id="saveStatus"></span>
+				</div>
+			</form>
+
+			<div class="mt-3">
+				<h2 class="mb-2">Current Check Status</h2>
+				<p class="subtle">Cells show the last result for each check. Hover to see the full error message.</p>
+				<div class="card mt-2">
+					<div class="card-body table-responsive">
+						<div id="statusTableContainer"></div>
+					</div>
+				</div>
+			</div>
+		</main>
 
 		<script src="{{ url_for('static', filename='error_banner.js') }}"></script>
 		<script>

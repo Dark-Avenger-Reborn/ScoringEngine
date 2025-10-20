@@ -4,16 +4,42 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width,initial-scale=1">
 		<title>Leaderboard</title>
-		<style>
-			body { font-family: Arial, sans-serif; padding: 20px; }
-			#chartContainer { max-width: 1000px; margin: 0 auto; }
-		</style>
+		<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 	</head>
 	<body>
-		<h1>Live Leaderboard</h1>
-		<div id="chartContainer">
-			<canvas id="leaderboardChart" width="800" height="400"></canvas>
-		</div>
+    <nav class="navbar">
+      <div class="container nav-inner">
+        <a class="brand" href="{{ url_for('index') }}">ScoringEngine</a>
+        <div class="nav-links">
+          <a href="{{ url_for('index') }}">Status</a>
+          <a class="active" href="{{ url_for('leaderboard') }}">Leaderboard</a>
+          <a href="{{ url_for('config') }}">Team Config</a>
+          {% if session.get('logged_in') %}
+            <a href="{{ url_for('logout') }}">Logout</a>
+          {% else %}
+            <a href="{{ url_for('login') }}">Login</a>
+          {% endif %}
+        </div>
+      </div>
+    </nav>
+
+    <main class="container">
+      <div class="page-header">
+        <h1>Live Leaderboard</h1>
+        <div class="btn-group">
+          <a class="btn btn-secondary" href="{{ url_for('index') }}">Status Matrix</a>
+          <a class="btn btn-outline" href="{{ url_for('config') }}">Configure Team</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <div id="chartContainer">
+            <canvas id="leaderboardChart" width="800" height="400"></canvas>
+          </div>
+        </div>
+      </div>
+    </main>
 
 		<!-- CDN: Chart.js and Socket.IO client -->
 		<script src="{{ url_for('static', filename='error_banner.js') }}"></script>

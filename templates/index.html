@@ -4,30 +4,45 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Status Matrix</title>
-    <style>
-      body { font-family: Arial, sans-serif; padding: 20px; }
-      table { border-collapse: collapse; width: 100%; max-width: 1200px; margin: 0 auto; }
-      th, td { border: 1px solid #ddd; padding: 8px; text-align: center; font-size: 0.9em; }
-      th { background: #f4f4f4; }
-      td.ok { background: #d4edda; color: #155724; cursor: pointer; } /* green */
-      td.fail { background: #f8d7da; color: #721c24; cursor: pointer; } /* red */
-      td.unknown { background: #fff3cd; color: #856404; } /* yellow for Not tested */
-      caption { font-size: 1.2em; margin-bottom: 8px; font-weight: bold; }
-      .error-detail { font-size: 0.75em; display: block; margin-top: 4px; font-style: italic; }
-      @media (max-width: 600px) {
-        table { font-size: 11px; }
-        .error-detail { font-size: 0.7em; }
-      }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   </head>
   <body>
-    <h1>Systems Status Matrix</h1>
-    <div id="tableContainer">
-      <!-- Table will be populated by static/index_table.js -->
-    </div>
+    <nav class="navbar">
+      <div class="container nav-inner">
+        <a class="brand" href="{{ url_for('index') }}">ScoringEngine</a>
+        <div class="nav-links">
+          <a class="active" href="{{ url_for('index') }}">Status</a>
+          <a href="{{ url_for('leaderboard') }}">Leaderboard</a>
+          <a href="{{ url_for('config') }}">Team Config</a>
+          {% if session.get('logged_in') %}
+            <a href="{{ url_for('logout') }}">Logout</a>
+          {% else %}
+            <a href="{{ url_for('login') }}">Login</a>
+          {% endif %}
+        </div>
+      </div>
+    </nav>
+
+    <main class="container">
+      <div class="page-header">
+        <h1>Systems Status Matrix</h1>
+        <div class="btn-group">
+          <a class="btn btn-secondary" href="{{ url_for('leaderboard') }}">View Leaderboard</a>
+          <a class="btn btn-outline" href="{{ url_for('config') }}">Configure Team</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <div class="table-responsive">
+            <div id="tableContainer"><!-- populated by index_table.js --></div>
+          </div>
+        </div>
+      </div>
+    </main>
 
     <script src="{{ url_for('static', filename='error_banner.js') }}"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="{{ url_for('static', filename='index_table.js') }}"></script>
   </body>
-</html>
+ </html>
