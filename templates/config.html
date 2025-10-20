@@ -88,6 +88,7 @@
 		<p class="small">Cells show the last result for each check. Hover to see the full error message.</p>
 		<div id="statusTableContainer"></div>
 
+		<script src="{{ url_for('static', filename='error_banner.js') }}"></script>
 		<script>
 			const form = document.getElementById('configForm');
 			const saveBtn = document.getElementById('saveBtn');
@@ -257,9 +258,18 @@
 			}
 
 			async function fetchTeamScores() {
-				const r = await fetch('/api/team-scores');
-				if (!r.ok) return {};
-				return r.json();
+				try {
+					const r = await fetch('/api/team-scores');
+					if (!r.ok) {
+						if (window.AppNotice) AppNotice.warn('Could not load team scores.');
+						return {};
+					}
+					return r.json();
+				} catch (e) {
+					console.warn('fetchTeamScores failed', e);
+					if (window.AppNotice) AppNotice.warn('Network error while loading team scores.');
+					return {};
+				}
 			}
 
 			async function initStatus() {
@@ -275,6 +285,7 @@
 			init().then(initStatus).catch(err => {
 				saveStatus.textContent = 'Failed to load configs. Please refresh.';
 				saveStatus.classList.add('error');
+				if (window.AppNotice) AppNotice.error('Failed to load configuration.');
 			});
 
 			// Live updates via Socket.IO
@@ -284,6 +295,9 @@
 					socket.on('scores', (scores) => {
 						if (!currentTeam) return;
 						buildStatusTable(currentTeam, scores);
+					});
+					socket.on('disconnect', () => {
+						if (window.AppNotice) AppNotice.warn('Disconnected from live updates. Changes are still saved.');
 					});
 				}; document.body.appendChild(s);
 			})();

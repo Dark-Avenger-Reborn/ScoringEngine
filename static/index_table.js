@@ -127,6 +127,7 @@
       updateTableFromScores(scores);
     } catch (err) {
       console.error('Error updating table from scores', err);
+      if (window.AppNotice) AppNotice.error('Failed to update leaderboard table from scores.');
     }
   });
 
@@ -139,7 +140,14 @@
       return r.json();
     }).then(data => {
       if (data) updateTableFromScores(data);
-    }).catch(() => {});
+    }).catch((e) => {
+      console.warn('Initial scores fetch failed', e);
+      if (window.AppNotice) AppNotice.warn('Could not load initial scores. Waiting for live updates...');
+    });
+  });
+
+  socket.on('disconnect', function (){
+    if (window.AppNotice) AppNotice.warn('Disconnected from live updates. Attempting to reconnect...');
   });
 
 })();

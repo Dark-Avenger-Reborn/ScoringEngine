@@ -82,6 +82,7 @@
       updateChartFromScores(scores);
     } catch (err) {
       console.error('Error updating chart from scores', err);
+      if (window.AppNotice) AppNotice.error('Failed to update leaderboard chart from scores.');
     }
   });
 
@@ -89,6 +90,10 @@
   // (same event name used by server)
   socket.on('connect', function () {
     console.log('Connected to scoreboard socket');
+  });
+
+  socket.on('disconnect', function (){
+    if (window.AppNotice) AppNotice.warn('Disconnected from live updates. Attempting to reconnect...');
   });
 
 })();
