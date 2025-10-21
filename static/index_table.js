@@ -59,17 +59,14 @@
 
         if (err === 'Success') {
           td.className = 'ok';
-          td.innerHTML = 'OK';
+          td.textContent = 'OK';
         } else if (err === 'Not tested') {
           td.className = 'unknown';
-          td.innerHTML = 'Not tested';
+          td.textContent = 'Not tested';
         } else {
+          // Hide error details on front page; just show FAIL without tooltip
           td.className = 'fail';
-          // Show status and a truncated error message inline
-          const errSnippet = String(err).slice(0, 60);
-          td.innerHTML = `FAIL<span class="error-detail">${errSnippet}${err.length > 60 ? '...' : ''}</span>`;
-          // Full error in title for hover
-          td.title = String(err);
+          td.textContent = 'FAIL';
         }
 
         row.appendChild(td);
@@ -104,17 +101,17 @@
         if (!td) return;
         if (err === 'Success') {
           td.className = 'ok';
-          td.innerHTML = 'OK';
-          td.title = '';
+          td.textContent = 'OK';
+          td.removeAttribute('title');
         } else if (err === 'Not tested') {
           td.className = 'unknown';
-          td.innerHTML = 'Not tested';
-          td.title = '';
+          td.textContent = 'Not tested';
+          td.removeAttribute('title');
         } else {
+          // Hide error details on front page; just show FAIL without tooltip
           td.className = 'fail';
-          const errSnippet = String(err).slice(0, 60);
-          td.innerHTML = `FAIL<span class="error-detail">${errSnippet}${err.length > 60 ? '...' : ''}</span>`;
-          td.title = String(err);
+          td.textContent = 'FAIL';
+          td.removeAttribute('title');
         }
       });
     });
