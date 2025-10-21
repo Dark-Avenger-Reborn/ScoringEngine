@@ -213,7 +213,7 @@ class Grader:
         if result[0]:
             self.append_scores(f"team{team}", f"ubuntu{first_n_digits(instance, 1)-1}ssh", "Success", 10)
         else:
-            self.append_scores(f"team{team}", f"ubuntu{first_n_digits(instance, 1)-1}ssh", result[1], 1)
+            self.append_scores(f"team{team}", f"ubuntu{first_n_digits(instance, 1)-1}ssh", result[1], 0)
 
     def grade_ping(self, team, ip, instance, services):
         result = services.ping_host(ip)
