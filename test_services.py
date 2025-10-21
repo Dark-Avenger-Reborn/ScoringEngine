@@ -7,10 +7,14 @@ import requests
 class Services:
     def __init__(self):
         self.ip = self.rotate_private_ips()
+        self.grading_cycle_count = 0  # Initialize grading cycle counter
 
     def rotate_private_ips(self):
         self.ip = f"10.0.0.{random.randint(2,254)}"
         subprocess.run(f"ifconfig eth0 {self.ip}", shell=True)
+
+    def increment_grading_cycle(self):
+        self.grading_cycle_count += 1  # Increment the grading cycle counter
 
     def ssh_connection(self, username, password, ip, port=22):
         try:

@@ -11,6 +11,8 @@ import os
 # json.JSONDecodeError: Expecting value).
 _scores_file_lock = threading.Lock()
 
+grading_cycle_count = 0
+
 def first_n_digits(num, n):
     return num // 10 ** (int(math.log(num, 10)) - n + 1)
 
@@ -21,6 +23,9 @@ class Grader:
         # grader threads.
         self.sio = sio
         self.is_grading = False
+        # Initialize instance-level cycle counter mirror
+        self.grading_cycle_count = 0
+
         initial = {
             "team1": {
                 "ubuntu1ping": {"error": "Not tested", "score": 0},
@@ -70,6 +75,9 @@ class Grader:
                 with open("scores.json", "w") as score_file:
                     json.dump(initial, score_file)
 
+    # Track how many grading cycles have completed
+    
+
 
     def append_scores(self, team, subject, error, points):
         # Acquire the lock for the shortest practical time to avoid blocking
@@ -107,8 +115,6 @@ class Grader:
             if subject not in scores[team]:
                 scores[team][subject] = {"error": "Not tested", "score": 0}
 
-            print(scores[team][subject].get("score", 0))
-
             scores[team][subject]["score"] = scores[team][subject].get("score", 0) + points
             scores[team][subject]["error"] = error
 
@@ -121,6 +127,24 @@ class Grader:
     def grade_projects(self):
         print("Grading projects...")
         self.is_grading = True
+        # Increment the grading cycle counter at the start of a cycle
+        global grading_cycle_count
+        grading_cycle_count += 1
+        # Mirror to the instance for reliable access from app.grader
+        self.grading_cycle_count = grading_cycle_count
+        # Push live update of cycle to clients
+        try:
+            self.sio.emit("gradingCycle", {"cycle": int(self.grading_cycle_count)}, namespace="/")
+        except Exception:
+            pass
+        # If the Flask app is available on the global import, expose the
+        # counter there so templates can read it via the app object.
+        try:
+            import main
+            if getattr(main, 'app', None):
+                main.app.grading_cycle_count = grading_cycle_count
+        except Exception as err:
+            print(err)
         services = Services()
         thread_list = []
         # Load team configuration for this grading cycle
@@ -176,6 +200,11 @@ class Grader:
             scores = json.load(score_file)
 
         self.sio.emit("scores", scores, namespace="/")
+        # Also re-emit cycle at the end in case clients connected mid-cycle
+        try:
+            self.sio.emit("gradingCycle", {"cycle": int(self.grading_cycle_count)}, namespace="/")
+        except Exception:
+            pass
         self.is_grading = False
 
 

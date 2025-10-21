@@ -9,7 +9,8 @@
 	<body>
     <nav class="navbar">
       <div class="container nav-inner">
-        <a class="brand" href="{{ url_for('index') }}">ScoringEngine</a>
+    <a class="brand" href="{{ url_for('index') }}">ScoringEngine</a>
+  <div class="nav-cycle" id="navCycle">Cycle #{{ grading_cycle_count }}</div>
         <div class="nav-links">
           <a href="{{ url_for('index') }}">Status</a>
           <a class="active" href="{{ url_for('leaderboard') }}">Leaderboard</a>
@@ -46,5 +47,31 @@
 		<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 		<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 		<script src="{{ url_for('static', filename='leaderboard.js') }}"></script>
+    <script>
+      try {
+        const socket = io();
+        socket.on('gradingCycle', (payload) => {
+          const el = document.getElementById('navCycle');
+          if (el && payload && typeof payload.cycle === 'number') {
+            el.textContent = `Cycle #${payload.cycle}`;
+          }
+        });
+      } catch {}
+    </script>
+    <script>
+      async function refreshCycle() {
+      try {
+        const r = await fetch('/api/grading-status');
+        if (!r.ok) return;
+        const data = await r.json();
+        const el = document.getElementById('navCycle');
+        if (el && typeof data.cycle === 'number') {
+        el.textContent = `Cycle #${data.cycle}`;
+        }
+      } catch {}
+      }
+      refreshCycle();
+      setInterval(refreshCycle, 5000);
+    </script>
 	</body>
  </html>

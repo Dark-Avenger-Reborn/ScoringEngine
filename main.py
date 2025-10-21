@@ -16,6 +16,24 @@ app = Flask(__name__)
 app.secret_key = os.urandom(24)
 sio = socketio.Server(cors_allowed_origins="*", logger=False, max_http_buffer_size=1e8)
 
+# Default grading cycle count on the app (may be updated by Grader)
+app.grading_cycle_count = 0
+
+
+@app.context_processor
+def inject_grading_cycle():
+    """Make grading_cycle_count available to all templates.
+    Prefer the live grader's attribute when present.
+    """
+    try:
+        grader = getattr(app, 'grader', None)
+        if grader is not None and hasattr(grader, 'grading_cycle_count'):
+            return {'grading_cycle_count': int(getattr(grader, 'grading_cycle_count', 0))}
+        return {'grading_cycle_count': int(getattr(app, 'grading_cycle_count', 0))}
+    except Exception as err:
+        print('inject_grading_cycle error:', err)
+        return {'grading_cycle_count': 0}
+
 def get_json():
     try:
         with open("config.json", "r") as file:
@@ -206,7 +224,15 @@ def grading_status():
         status = bool(getattr(app, 'grader', None) and getattr(app.grader, 'is_grading', False))
     except Exception:
         status = False
-    return jsonify({"isGrading": status})
+    try:
+        grader = getattr(app, 'grader', None)
+        if grader is not None and hasattr(grader, 'grading_cycle_count'):
+            cycle = int(getattr(grader, 'grading_cycle_count', 0))
+        else:
+            cycle = int(getattr(app, 'grading_cycle_count', 0))
+    except Exception:
+        cycle = 0
+    return jsonify({"isGrading": status, "cycle": cycle})
 
 # Logged-in team's scores (subset of scores.json)
 @app.route('/api/team-scores', methods=['GET'])
@@ -241,6 +267,17 @@ def connect(sid, environ):
 
     print("Client connected:", sid)
     sio.emit("scores", scores, to=sid)
+    try:
+        # Also send the current cycle to new client for instant navbar update
+        cycle = 0
+        grader = getattr(app, 'grader', None)
+        if grader is not None and hasattr(grader, 'grading_cycle_count'):
+            cycle = int(getattr(grader, 'grading_cycle_count', 0))
+        else:
+            cycle = int(getattr(app, 'grading_cycle_count', 0))
+        sio.emit("gradingCycle", {"cycle": cycle}, to=sid)
+    except Exception:
+        pass
 
 if __name__ == "__main__":
     # Reset scores.json to a known initial state on every server start so
