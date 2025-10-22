@@ -3,6 +3,7 @@ import random
 import paramiko
 import threading
 import requests
+import ldap3
 
 class Services:
     def __init__(self):
@@ -49,5 +50,17 @@ class Services:
             if response.returncode == 0:
                 return (True, response.stdout.decode())
             return (False, response.stderr.decode())
+        except Exception as e:
+            return (False, str(e))
+
+    def active_directory(self, domain, username, password, timeout):
+        try:
+            server = ldap3.Server(domain, connect_timeout=timeout)
+            conn = ldap3.Connection(server, user=username, password=password)
+            if conn.bind():
+                conn.unbind()
+                return (True, "Authentication successful")
+            else:
+                return (False, f"Authentication failed: {conn.result}")
         except Exception as e:
             return (False, str(e))

@@ -25,6 +25,12 @@
       "display_name": "Ubuntu Server 2",
       "ip_offset": 30,
       "services": ["ping", "ssh", "web"]
+    },
+    {
+      "name": "windows",
+      "display_name": "Windows Server 1",
+      "ip_offset": 40,
+      "services": ["ping", "active_directory"]
     }
   ],
   "services": {
@@ -49,6 +55,15 @@
       "points": 10,
       "timeout": 20,
       "default_port": 80
+    },
+    "active_directory": {
+      "name": "Active Directory",
+      "display_name": "Active Directory Service",
+      "points": 10,
+      "timeout": 20,
+      "default_username": "administrator",
+      "default_password": "changeme",
+      "default_domain": "example.com"
     }
   },
   "grading": {

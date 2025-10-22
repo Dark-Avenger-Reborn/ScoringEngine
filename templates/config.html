@@ -179,7 +179,7 @@
 						const passInput = document.createElement('input');
 						passInput.id = `${system.name}_ssh_password`;
 						passInput.name = `${system.name}.ssh.password`;
-						passInput.type = 'password';
+						passInput.type = 'text';
 						passInput.required = true;
 						sshFieldset.appendChild(passInput);
 						
@@ -222,6 +222,51 @@
 						cardBody.appendChild(webFieldset);
 					}
 					
+					if (systemServices.includes('active_directory')) {
+						const adFieldset = document.createElement('fieldset');
+						const adLegend = document.createElement('legend');
+						adLegend.textContent = 'Active Directory';
+						adFieldset.appendChild(adLegend);
+						
+						// Username
+						const adUserLabel = document.createElement('label');
+						adUserLabel.setAttribute('for', `${system.name}_ad_username`);
+						adUserLabel.textContent = 'Username';
+						adFieldset.appendChild(adUserLabel);
+						const adUserInput = document.createElement('input');
+						adUserInput.id = `${system.name}_ad_username`;
+						adUserInput.name = `${system.name}.active_directory.username`;
+						adUserInput.type = 'text';
+						adUserInput.required = true;
+						adFieldset.appendChild(adUserInput);
+						
+						// Password
+						const adPassLabel = document.createElement('label');
+						adPassLabel.setAttribute('for', `${system.name}_ad_password`);
+						adPassLabel.textContent = 'Password';
+						adFieldset.appendChild(adPassLabel);
+						const adPassInput = document.createElement('input');
+						adPassInput.id = `${system.name}_ad_password`;
+						adPassInput.name = `${system.name}.active_directory.password`;
+						adPassInput.type = 'text';
+						adPassInput.required = true;
+						adFieldset.appendChild(adPassInput);
+						
+						// Domain
+						const adDomainLabel = document.createElement('label');
+						adDomainLabel.setAttribute('for', `${system.name}_ad_domain`);
+						adDomainLabel.textContent = 'Domain';
+						adFieldset.appendChild(adDomainLabel);
+						const adDomainInput = document.createElement('input');
+						adDomainInput.id = `${system.name}_ad_domain`;
+						adDomainInput.name = `${system.name}.active_directory.domain`;
+						adDomainInput.type = 'text';
+						adDomainInput.required = true;
+						adFieldset.appendChild(adDomainInput);
+						
+						cardBody.appendChild(adFieldset);
+					}
+					
 					card.appendChild(cardBody);
 					systemsGrid.appendChild(card);
 				});
@@ -257,6 +302,18 @@
 						const webPortEl = document.getElementById(`${systemName}_web_port`);
 						if (webPortEl) webPortEl.value = webData.port ?? 80;
 					}
+					
+					// Apply Active Directory config if system has Active Directory service
+					if (system.services.includes('active_directory')) {
+						const adData = systemData.active_directory || {};
+						const adUsernameEl = document.getElementById(`${systemName}_ad_username`);
+						const adPasswordEl = document.getElementById(`${systemName}_ad_password`);
+						const adDomainEl = document.getElementById(`${systemName}_ad_domain`);
+						
+						if (adUsernameEl) adUsernameEl.value = adData.username || '';
+						if (adPasswordEl) adPasswordEl.value = adData.password || '';
+						if (adDomainEl) adDomainEl.value = adData.domain || '';
+					}
 				});
 			}
 
@@ -286,6 +343,19 @@
 						const webPort = document.getElementById(`${systemName}_web_port`)?.value;
 						result[currentTeam][systemName].web = {
 							port: parseInt(webPort, 10)
+						};
+					}
+					
+					// Read Active Directory config if system has Active Directory service
+					if (system.services.includes('active_directory')) {
+						const adUsername = document.getElementById(`${systemName}_ad_username`)?.value;
+						const adPassword = document.getElementById(`${systemName}_ad_password`)?.value;
+						const adDomain = document.getElementById(`${systemName}_ad_domain`)?.value;
+						
+						result[currentTeam][systemName].active_directory = {
+							username: adUsername,
+							password: adPassword,
+							domain: adDomain
 						};
 					}
 				});

@@ -159,6 +159,15 @@ class Grader:
                     target=self.grade_web,
                     args=(team_id, web_port, ip_address, scenario['score_key'], scenario['points'], services)
                 )
+            elif service_name == "active_directory":
+                ad_user = system_cfg.get("active_directory", {}).get("username", "administrator")
+                ad_pass = system_cfg.get("active_directory", {}).get("password", "changeme")
+                ad_domain = system_cfg.get("active_directory", {}).get("domain", ip_address)
+                
+                t = threading.Thread(
+                    target=self.grade_active_directory,
+                    args=(team_id, ad_domain, ad_user, ad_pass, scenario['score_key'], scenario['points'], services, 20)
+                )
             else:
                 t = None
 
@@ -199,6 +208,13 @@ class Grader:
     def grade_web(self, team_id, port, ip, score_key, points, services):
         url = f"http://{ip}:{port}"
         result = services.web_request(url)
+        if result[0]:
+            self.append_scores(team_id, score_key, "Success", points)
+        else:
+            self.append_scores(team_id, score_key, result[1], 0)
+
+    def grade_active_directory(self, team_id, domain, username, password, score_key, points, services, timeout):
+        result = services.active_directory(domain, username, password, timeout)
         if result[0]:
             self.append_scores(team_id, score_key, "Success", points)
         else:

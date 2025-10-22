@@ -137,6 +137,12 @@ class ConfigLoader:
                         team_configs[team_id][system_name]['web'] = {
                             'port': service_config.get('default_port', 80)
                         }
+                    elif service_name == 'active_directory':
+                        team_configs[team_id][system_name]['active_directory'] = {
+                            'username': service_config.get('default_username', 'administrator'),
+                            'password': service_config.get('default_password', 'changeme'),
+                            'domain': service_config.get('default_domain', 'example.com')
+                        }
         
         return team_configs
     

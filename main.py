@@ -37,10 +37,10 @@ def inject_grading_cycle():
 
 def get_json():
     try:
-        with open("config.json", "r") as file:
-            credentials = json.load(file)
+        config_loader = get_config_loader()
+        credentials = config_loader.generate_login_credentials()
         return credentials
-    except FileNotFoundError:
+    except Exception:
         return None
 
 def is_logged_in():
@@ -196,6 +196,18 @@ def update_team_configs():
                 web_service_config = config_loader.get_service_config('web')
                 system_cfg['web'] = {
                     'port': web.get('port', web_service_config.get('default_port', 80))
+                }
+            
+            # Validate Active Directory config if this system has Active Directory service
+            if 'active_directory' in system.get('services', []):
+                ad = system_cfg.get('active_directory', {})
+                
+                # Normalize Active Directory config
+                ad_service_config = config_loader.get_service_config('active_directory')
+                system_cfg['active_directory'] = {
+                    'username': ad.get('username', ad_service_config.get('default_username', 'administrator')),
+                    'password': ad.get('password', ad_service_config.get('default_password', 'changeme')),
+                    'domain': ad.get('domain', ad_service_config.get('default_domain', 'example.com')),
                 }
         
         # Read full config, update only this team's section, and write back
