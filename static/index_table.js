@@ -2,21 +2,50 @@
 (function () {
   const socket = io();
 
-  // Keep the same service ordering used by leaderboard.js
-  const serviceOrder = [
-    'ubuntu1ping', 'ubuntu2ping',
-    'ubuntu1ssh', 'ubuntu2ssh',
-    'ubuntu1web', 'ubuntu2web'
-  ];
+  let systemsList = [];
+  let servicesConfig = {};
+  let serviceOrder = [];
+  let serviceLabels = {};
 
-  const serviceLabels = {
-    ubuntu1ping: 'Ping (1)',
-    ubuntu2ping: 'Ping (2)',
-    ubuntu1ssh: 'SSH (1)',
-    ubuntu2ssh: 'SSH (2)',
-    ubuntu1web: 'Web (1)',
-    ubuntu2web: 'Web (2)'
-  };
+  // Fetch systems configuration from API
+  async function loadSystemsConfig() {
+    try {
+      const res = await fetch('/api/systems');
+      if (!res.ok) throw new Error('Failed to load systems');
+      const data = await res.json();
+      systemsList = data.systems || [];
+      servicesConfig = data.services || {};
+      
+      // Build service order and labels dynamically
+      serviceOrder = [];
+      serviceLabels = {};
+      systemsList.forEach(system => {
+        system.services.forEach(serviceName => {
+          const key = `${system.name}${serviceName}`;
+          serviceOrder.push(key);
+          const serviceConfig = servicesConfig[serviceName] || {};
+          const systemNum = system.name.replace(/\D/g, '') || '?';
+          serviceLabels[key] = `${serviceConfig.display_name || serviceName} (${systemNum})`;
+        });
+      });
+    } catch (err) {
+      console.error('Failed to load systems config:', err);
+      // Fallback to hardcoded defaults if API fails
+      serviceOrder = [
+        'ubuntu1ping', 'ubuntu2ping',
+        'ubuntu1ssh', 'ubuntu2ssh',
+        'ubuntu1web', 'ubuntu2web'
+      ];
+      serviceLabels = {
+        ubuntu1ping: 'Ping (1)',
+        ubuntu2ping: 'Ping (2)',
+        ubuntu1ssh: 'SSH (1)',
+        ubuntu2ssh: 'SSH (2)',
+        ubuntu1web: 'Web (1)',
+        ubuntu2web: 'Web (2)'
+      };
+    }
+  }
 
   function makeTable(scores) {
     const container = document.getElementById('tableContainer');
@@ -145,6 +174,17 @@
 
   socket.on('disconnect', function (){
     if (window.AppNotice) AppNotice.warn('Disconnected from live updates. Attempting to reconnect...');
+  });
+
+  // Initialize by loading systems config first
+  loadSystemsConfig().then(() => {
+    // Try to fetch initial scores
+    fetch('/scores.json').then(r => {
+      if (!r.ok) return null;
+      return r.json();
+    }).then(data => {
+      if (data) updateTableFromScores(data);
+    }).catch(() => {});
   });
 
 })();

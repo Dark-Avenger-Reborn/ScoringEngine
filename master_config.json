@@ -1,0 +1,58 @@
+{
+  "teams": [
+    {
+      "name": "Team1",
+      "id": "team1",
+      "password": "changeme",
+      "subnet": "10.0.1.0/24"
+    },
+    {
+      "name": "Team2",
+      "id": "team2",
+      "password": "changeme",
+      "subnet": "10.0.2.0/24"
+    }
+  ],
+  "systems": [
+    {
+      "name": "ubuntu1",
+      "display_name": "Ubuntu Server 1",
+      "ip_offset": 20,
+      "services": ["ping", "ssh", "web"]
+    },
+    {
+      "name": "ubuntu2",
+      "display_name": "Ubuntu Server 2",
+      "ip_offset": 30,
+      "services": ["ping", "ssh", "web"]
+    }
+  ],
+  "services": {
+    "ping": {
+      "name": "Ping",
+      "display_name": "Network Connectivity",
+      "points": 10,
+      "timeout": 20
+    },
+    "ssh": {
+      "name": "SSH",
+      "display_name": "SSH Service",
+      "points": 10,
+      "timeout": 20,
+      "default_username": "sysadmin",
+      "default_password": "changeme",
+      "default_port": 22
+    },
+    "web": {
+      "name": "Web",
+      "display_name": "Web Service",
+      "points": 10,
+      "timeout": 20,
+      "default_port": 80
+    }
+  },
+  "grading": {
+    "interval_seconds": 40,
+    "concurrent_threads": true
+  }
+}

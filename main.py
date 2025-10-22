@@ -10,6 +10,7 @@ import json
 import time
 import threading
 from grader import Grader
+from config_loader import get_config_loader
 
 
 app = Flask(__name__)
@@ -113,16 +114,9 @@ def get_team_configs():
         with open('team_configs.json', 'r') as f:
             data = json.load(f)
     except Exception:
-        data = {
-            "team1": {
-                "ubuntu1": {"ssh": {"username": "sysadmin", "password": "changeme", "port": 22}, "web": {"port": 80}},
-                "ubuntu2": {"ssh": {"username": "sysadmin", "password": "changeme", "port": 22}, "web": {"port": 80}},
-            },
-            "team2": {
-                "ubuntu1": {"ssh": {"username": "sysadmin", "password": "changeme", "port": 22}, "web": {"port": 80}},
-                "ubuntu2": {"ssh": {"username": "sysadmin", "password": "changeme", "port": 22}, "web": {"port": 80}},
-            },
-        }
+        # Generate default config from master_config.json
+        config_loader = get_config_loader()
+        data = config_loader.generate_team_configs()
     # Only return the logged-in team's config
     user_team = session.get("team", "team1")
     return jsonify({user_team: data.get(user_team, {})})
@@ -155,57 +149,62 @@ def update_team_configs():
         
         team_data = payload[user_team]
         
-        # Validate ubuntu1 and ubuntu2 structures
-        for ubuntu_key in ["ubuntu1", "ubuntu2"]:
-            if ubuntu_key not in team_data:
-                return jsonify({"error": f"Missing {ubuntu_key} in payload"}), 400
-            ubuntu_cfg = team_data[ubuntu_key]
-            ssh = ubuntu_cfg.get('ssh', {})
-            web = ubuntu_cfg.get('web', {})
+        # Load config loader to get list of systems dynamically
+        config_loader = get_config_loader()
+        systems = config_loader.get_systems()
+        
+        # Validate all systems in the configuration
+        for system in systems:
+            system_name = system['name']
+            if system_name not in team_data:
+                return jsonify({"error": f"Missing {system_name} in payload"}), 400
+            system_cfg = team_data[system_name]
             
-            # Coerce ports to int within sane ranges
-            if 'port' in ssh:
-                try:
-                    p = int(ssh['port'])
-                    if p < 1 or p > 65535:
-                        return jsonify({"error": f"SSH port out of range for {ubuntu_key}"}), 400
-                    ssh['port'] = p
-                except Exception:
-                    return jsonify({"error": f"SSH port invalid for {ubuntu_key}"}), 400
-            if 'port' in web:
-                try:
-                    p = int(web['port'])
-                    if p < 1 or p > 65535:
-                        return jsonify({"error": f"Web port out of range for {ubuntu_key}"}), 400
-                    web['port'] = p
-                except Exception:
-                    return jsonify({"error": f"Web port invalid for {ubuntu_key}"}), 400
+            # Validate SSH config if this system has SSH service
+            if 'ssh' in system.get('services', []):
+                ssh = system_cfg.get('ssh', {})
+                if 'port' in ssh:
+                    try:
+                        p = int(ssh['port'])
+                        if p < 1 or p > 65535:
+                            return jsonify({"error": f"SSH port out of range for {system_name}"}), 400
+                        ssh['port'] = p
+                    except Exception:
+                        return jsonify({"error": f"SSH port invalid for {system_name}"}), 400
+                
+                # Normalize SSH config
+                ssh_service_config = config_loader.get_service_config('ssh')
+                system_cfg['ssh'] = {
+                    'username': ssh.get('username', ssh_service_config.get('default_username', 'sysadmin')),
+                    'password': ssh.get('password', ssh_service_config.get('default_password', 'changeme')),
+                    'port': ssh.get('port', ssh_service_config.get('default_port', 22)),
+                }
             
-            # Normalize
-            ubuntu_cfg['ssh'] = {
-                'username': ssh.get('username', 'sysadmin'),
-                'password': ssh.get('password', 'changeme'),
-                'port': ssh.get('port', 22),
-            }
-            ubuntu_cfg['web'] = {
-                'port': web.get('port', 80)
-            }
+            # Validate Web config if this system has Web service
+            if 'web' in system.get('services', []):
+                web = system_cfg.get('web', {})
+                if 'port' in web:
+                    try:
+                        p = int(web['port'])
+                        if p < 1 or p > 65535:
+                            return jsonify({"error": f"Web port out of range for {system_name}"}), 400
+                        web['port'] = p
+                    except Exception:
+                        return jsonify({"error": f"Web port invalid for {system_name}"}), 400
+                
+                # Normalize Web config
+                web_service_config = config_loader.get_service_config('web')
+                system_cfg['web'] = {
+                    'port': web.get('port', web_service_config.get('default_port', 80))
+                }
         
         # Read full config, update only this team's section, and write back
         try:
             with open('team_configs.json', 'r') as f:
                 full_config = json.load(f)
         except Exception:
-            full_config = {
-                "team1": {
-                    "ubuntu1": {"ssh": {"username": "sysadmin", "password": "changeme", "port": 22}, "web": {"port": 80}},
-                    "ubuntu2": {"ssh": {"username": "sysadmin", "password": "changeme", "port": 22}, "web": {"port": 80}},
-                },
-                "team2": {
-                    "ubuntu1": {"ssh": {"username": "sysadmin", "password": "changeme", "port": 22}, "web": {"port": 80}},
-                    "ubuntu2": {"ssh": {"username": "sysadmin", "password": "changeme", "port": 22}, "web": {"port": 80}},
-                },
-            }
+            # Generate defaults from master config
+            full_config = config_loader.generate_team_configs()
         
         full_config[user_team] = team_data
         
@@ -234,6 +233,17 @@ def grading_status():
         cycle = 0
     return jsonify({"isGrading": status, "cycle": cycle})
 
+@app.route('/api/systems', methods=['GET'])
+def get_systems():
+    """Get list of systems from master config for dynamic UI rendering."""
+    try:
+        config_loader = get_config_loader()
+        systems = config_loader.get_systems()
+        services = config_loader.get_services()
+        return jsonify({"systems": systems, "services": services})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # Logged-in team's scores (subset of scores.json)
 @app.route('/api/team-scores', methods=['GET'])
 def team_scores():
@@ -250,11 +260,6 @@ def team_scores():
         return jsonify({team_key: team_scores})
     except Exception:
         return jsonify({team_key: {}})
-
-def grade_projects(grader):
-    while True:
-        grader.grade_projects()
-        time.sleep(40)
 
 @sio.on("connect")
 def connect(sid, environ):
@@ -280,26 +285,12 @@ def connect(sid, environ):
         pass
 
 if __name__ == "__main__":
+    # Load centralized configuration
+    config_loader = get_config_loader()
+    
     # Reset scores.json to a known initial state on every server start so
     # previous runs don't carry over scores.
-    initial_scores = {
-        "team1": {
-            "ubuntu1ping": {"error": "Not tested", "score": 0},
-            "ubuntu2ping": {"error": "Not tested", "score": 0},
-            "ubuntu1ssh": {"error": "Not tested", "score": 0},
-            "ubuntu2ssh": {"error": "Not tested", "score": 0},
-            "ubuntu1web": {"error": "Not tested", "score": 0},
-            "ubuntu2web": {"error": "Not tested", "score": 0},
-        },
-        "team2": {
-            "ubuntu1ping": {"error": "Not tested", "score": 0},
-            "ubuntu2ping": {"error": "Not tested", "score": 0},
-            "ubuntu1ssh": {"error": "Not tested", "score": 0},
-            "ubuntu2ssh": {"error": "Not tested", "score": 0},
-            "ubuntu1web": {"error": "Not tested", "score": 0},
-            "ubuntu2web": {"error": "Not tested", "score": 0},
-        },
-    }
+    initial_scores = config_loader.generate_initial_scores()
 
     # Write atomically: write to a temp file then replace
     try:
@@ -314,6 +305,16 @@ if __name__ == "__main__":
     grader = Grader(sio)
     # Expose grader on app for API access to is_grading
     app.grader = grader
-    threading.Thread(target=grade_projects, args=(grader,)).start()
+    
+    # Get grading interval from master config
+    grading_config = config_loader.get_grading_config()
+    grading_interval = grading_config.get('interval_seconds', 40)
+    
+    def grade_with_interval(grader, interval):
+        while True:
+            grader.grade_projects()
+            time.sleep(interval)
+    
+    threading.Thread(target=grade_with_interval, args=(grader, grading_interval)).start()
     flaskApp = socketio.Middleware(sio, app)
     eventlet.wsgi.server(eventlet.listen(("0.0.0.0", 5000)), flaskApp)

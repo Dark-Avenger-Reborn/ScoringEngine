@@ -41,48 +41,8 @@
 			</div>
 
 			<form id="configForm">
-				<div class="grid two">
-					<div class="card">
-						<div class="card-header" id="teamHeader">Your Team</div>
-						<div class="card-body">
-							<h3 class="mb-2">Ubuntu 1</h3>
-							<fieldset class="mb-2">
-								<legend>SSH</legend>
-								<label for="ubuntu1_ssh_username">Username</label>
-								<input id="ubuntu1_ssh_username" name="ubuntu1.ssh.username" type="text" required>
-								<label for="ubuntu1_ssh_password">Password</label>
-								<input id="ubuntu1_ssh_password" name="ubuntu1.ssh.password" type="password" required>
-								<label for="ubuntu1_ssh_port">Port</label>
-								<input id="ubuntu1_ssh_port" name="ubuntu1.ssh.port" type="number" min="1" max="65535" required>
-							</fieldset>
-							<fieldset>
-								<legend>Web</legend>
-								<label for="ubuntu1_web_port">Port</label>
-								<input id="ubuntu1_web_port" name="ubuntu1.web.port" type="number" min="1" max="65535" required>
-							</fieldset>
-						</div>
-					</div>
-
-					<div class="card">
-						<div class="card-header">&nbsp;</div>
-						<div class="card-body">
-							<h3 class="mb-2">Ubuntu 2</h3>
-							<fieldset class="mb-2">
-								<legend>SSH</legend>
-								<label for="ubuntu2_ssh_username">Username</label>
-								<input id="ubuntu2_ssh_username" name="ubuntu2.ssh.username" type="text" required>
-								<label for="ubuntu2_ssh_password">Password</label>
-								<input id="ubuntu2_ssh_password" name="ubuntu2.ssh.password" type="password" required>
-								<label for="ubuntu2_ssh_port">Port</label>
-								<input id="ubuntu2_ssh_port" name="ubuntu2.ssh.port" type="number" min="1" max="65535" required>
-							</fieldset>
-							<fieldset>
-								<legend>Web</legend>
-								<label for="ubuntu2_web_port">Port</label>
-								<input id="ubuntu2_web_port" name="ubuntu2.web.port" type="number" min="1" max="65535" required>
-							</fieldset>
-						</div>
-					</div>
+				<div class="grid two" id="systemsGrid">
+					<!-- System cards will be dynamically generated here -->
 				</div>
 				<div class="actions">
 					<button type="submit" id="saveBtn" class="btn btn-primary">Save Changes</button>
@@ -133,9 +93,17 @@
 			const saveBtn = document.getElementById('saveBtn');
 			const saveStatus = document.getElementById('saveStatus');
 			const gradingBanner = document.getElementById('gradingBanner');
-			const teamHeader = document.getElementById('teamHeader');
+			const systemsGrid = document.getElementById('systemsGrid');
 
 			let currentTeam = null;
+			let systemsList = [];
+			let servicesConfig = {};
+
+			async function fetchSystems() {
+				const res = await fetch('/api/systems');
+				if (!res.ok) throw new Error('Failed to load systems config');
+				return res.json();
+			}
 
 			async function fetchConfigs() {
 				const res = await fetch('/api/team-configs');
@@ -159,54 +127,178 @@
 				form.classList.toggle('disabled', disabled);
 			}
 
+			function buildSystemCards(systems, services) {
+				systemsGrid.innerHTML = '';
+				systemsList = systems;
+				servicesConfig = services;
+
+				systems.forEach((system, index) => {
+					const card = document.createElement('div');
+					card.className = 'card';
+					
+					const cardHeader = document.createElement('div');
+					cardHeader.className = 'card-header';
+					cardHeader.textContent = index === 0 ? 'Your Team' : '\u00A0';
+					card.appendChild(cardHeader);
+					
+					const cardBody = document.createElement('div');
+					cardBody.className = 'card-body';
+					
+					const title = document.createElement('h3');
+					title.className = 'mb-2';
+					title.textContent = system.display_name || system.name;
+					cardBody.appendChild(title);
+					
+					// Add fieldsets for each service type the system has
+					const systemServices = system.services || [];
+					
+					if (systemServices.includes('ssh')) {
+						const sshFieldset = document.createElement('fieldset');
+						sshFieldset.className = 'mb-2';
+						const sshLegend = document.createElement('legend');
+						sshLegend.textContent = 'SSH';
+						sshFieldset.appendChild(sshLegend);
+						
+						// Username
+						const userLabel = document.createElement('label');
+						userLabel.setAttribute('for', `${system.name}_ssh_username`);
+						userLabel.textContent = 'Username';
+						sshFieldset.appendChild(userLabel);
+						const userInput = document.createElement('input');
+						userInput.id = `${system.name}_ssh_username`;
+						userInput.name = `${system.name}.ssh.username`;
+						userInput.type = 'text';
+						userInput.required = true;
+						sshFieldset.appendChild(userInput);
+						
+						// Password
+						const passLabel = document.createElement('label');
+						passLabel.setAttribute('for', `${system.name}_ssh_password`);
+						passLabel.textContent = 'Password';
+						sshFieldset.appendChild(passLabel);
+						const passInput = document.createElement('input');
+						passInput.id = `${system.name}_ssh_password`;
+						passInput.name = `${system.name}.ssh.password`;
+						passInput.type = 'password';
+						passInput.required = true;
+						sshFieldset.appendChild(passInput);
+						
+						// Port
+						const portLabel = document.createElement('label');
+						portLabel.setAttribute('for', `${system.name}_ssh_port`);
+						portLabel.textContent = 'Port';
+						sshFieldset.appendChild(portLabel);
+						const portInput = document.createElement('input');
+						portInput.id = `${system.name}_ssh_port`;
+						portInput.name = `${system.name}.ssh.port`;
+						portInput.type = 'number';
+						portInput.min = '1';
+						portInput.max = '65535';
+						portInput.required = true;
+						sshFieldset.appendChild(portInput);
+						
+						cardBody.appendChild(sshFieldset);
+					}
+					
+					if (systemServices.includes('web')) {
+						const webFieldset = document.createElement('fieldset');
+						const webLegend = document.createElement('legend');
+						webLegend.textContent = 'Web';
+						webFieldset.appendChild(webLegend);
+						
+						const webPortLabel = document.createElement('label');
+						webPortLabel.setAttribute('for', `${system.name}_web_port`);
+						webPortLabel.textContent = 'Port';
+						webFieldset.appendChild(webPortLabel);
+						const webPortInput = document.createElement('input');
+						webPortInput.id = `${system.name}_web_port`;
+						webPortInput.name = `${system.name}.web.port`;
+						webPortInput.type = 'number';
+						webPortInput.min = '1';
+						webPortInput.max = '65535';
+						webPortInput.required = true;
+						webFieldset.appendChild(webPortInput);
+						
+						cardBody.appendChild(webFieldset);
+					}
+					
+					card.appendChild(cardBody);
+					systemsGrid.appendChild(card);
+				});
+			}
+
 			function applyConfigs(cfg) {
-				// cfg should have one key: team1 or team2
+				// cfg should have one key: team1 or team2, etc
 				const teamKey = Object.keys(cfg)[0];
 				if (!teamKey) return;
 				currentTeam = teamKey;
-				teamHeader.textContent = teamKey === 'team1' ? 'Team 1' : 'Team 2';
 				
-				const teamData = cfg[teamKey] || { ubuntu1: {ssh: {}, web: {}}, ubuntu2: {ssh: {}, web: {}} };
-				const u1 = teamData.ubuntu1 || { ssh: {}, web: {} };
-				const u2 = teamData.ubuntu2 || { ssh: {}, web: {} };
+				const teamData = cfg[teamKey] || {};
 				
-				document.getElementById('ubuntu1_ssh_username').value = u1.ssh.username || '';
-				document.getElementById('ubuntu1_ssh_password').value = u1.ssh.password || '';
-				document.getElementById('ubuntu1_ssh_port').value = u1.ssh.port ?? 22;
-				document.getElementById('ubuntu1_web_port').value = u1.web.port ?? 80;
-				
-				document.getElementById('ubuntu2_ssh_username').value = u2.ssh.username || '';
-				document.getElementById('ubuntu2_ssh_password').value = u2.ssh.password || '';
-				document.getElementById('ubuntu2_ssh_port').value = u2.ssh.port ?? 22;
-				document.getElementById('ubuntu2_web_port').value = u2.web.port ?? 80;
+				systemsList.forEach(system => {
+					const systemName = system.name;
+					const systemData = teamData[systemName] || {};
+					
+					// Apply SSH config if system has SSH service
+					if (system.services.includes('ssh')) {
+						const sshData = systemData.ssh || {};
+						const usernameEl = document.getElementById(`${systemName}_ssh_username`);
+						const passwordEl = document.getElementById(`${systemName}_ssh_password`);
+						const portEl = document.getElementById(`${systemName}_ssh_port`);
+						
+						if (usernameEl) usernameEl.value = sshData.username || '';
+						if (passwordEl) passwordEl.value = sshData.password || '';
+						if (portEl) portEl.value = sshData.port ?? 22;
+					}
+					
+					// Apply Web config if system has Web service
+					if (system.services.includes('web')) {
+						const webData = systemData.web || {};
+						const webPortEl = document.getElementById(`${systemName}_web_port`);
+						if (webPortEl) webPortEl.value = webData.port ?? 80;
+					}
+				});
 			}
 
 			function readForm() {
 				if (!currentTeam) return {};
-				return {
-					[currentTeam]: {
-						ubuntu1: {
-							ssh: {
-								username: document.getElementById('ubuntu1_ssh_username').value,
-								password: document.getElementById('ubuntu1_ssh_password').value,
-								port: parseInt(document.getElementById('ubuntu1_ssh_port').value, 10)
-							},
-							web: { port: parseInt(document.getElementById('ubuntu1_web_port').value, 10) }
-						},
-						ubuntu2: {
-							ssh: {
-								username: document.getElementById('ubuntu2_ssh_username').value,
-								password: document.getElementById('ubuntu2_ssh_password').value,
-								port: parseInt(document.getElementById('ubuntu2_ssh_port').value, 10)
-							},
-							web: { port: parseInt(document.getElementById('ubuntu2_web_port').value, 10) }
-						}
+				const result = { [currentTeam]: {} };
+				
+				systemsList.forEach(system => {
+					const systemName = system.name;
+					result[currentTeam][systemName] = {};
+					
+					// Read SSH config if system has SSH service
+					if (system.services.includes('ssh')) {
+						const username = document.getElementById(`${systemName}_ssh_username`)?.value;
+						const password = document.getElementById(`${systemName}_ssh_password`)?.value;
+						const port = document.getElementById(`${systemName}_ssh_port`)?.value;
+						
+						result[currentTeam][systemName].ssh = {
+							username: username,
+							password: password,
+							port: parseInt(port, 10)
+						};
 					}
-				};
+					
+					// Read Web config if system has Web service
+					if (system.services.includes('web')) {
+						const webPort = document.getElementById(`${systemName}_web_port`)?.value;
+						result[currentTeam][systemName].web = {
+							port: parseInt(webPort, 10)
+						};
+					}
+				});
+				
+				return result;
 			}
 
 			async function init() {
-				// Initial load
+				// Load systems first to build the form
+				const systemsData = await fetchSystems();
+				buildSystemCards(systemsData.systems, systemsData.services);
+				
+				// Then load configs and status
 				const [cfg, status] = await Promise.all([fetchConfigs(), fetchGradingStatus()]);
 				applyConfigs(cfg);
 				setFormDisabled(Boolean(status.isGrading));
@@ -260,33 +352,64 @@
 				const table = document.createElement('table');
 				const thead = document.createElement('thead');
 				const trh = document.createElement('tr');
-				['System', 'Ping', 'SSH', 'Web'].forEach(h => { const th = document.createElement('th'); th.textContent = h; trh.appendChild(th); });
+				
+				// Build header: System + service types (without system names in header)
+				const headers = ['System'];
+				// Get unique service types from all systems
+				const serviceTypes = new Set();
+				systemsList.forEach(system => {
+					system.services.forEach(service => serviceTypes.add(service));
+				});
+				
+				// Add service type headers
+				Array.from(serviceTypes).forEach(serviceName => {
+					const serviceConfig = servicesConfig[serviceName] || {};
+					headers.push(serviceConfig.display_name || serviceName);
+				});
+				
+				headers.forEach(h => { 
+					const th = document.createElement('th'); 
+					th.textContent = h; 
+					trh.appendChild(th); 
+				});
 				thead.appendChild(trh);
 				table.appendChild(thead);
+				
 				const tbody = document.createElement('tbody');
-				['ubuntu1', 'ubuntu2'].forEach(u => {
+				systemsList.forEach(system => {
 					const tr = document.createElement('tr');
-					const sysTh = document.createElement('th'); sysTh.textContent = u.toUpperCase(); tr.appendChild(sysTh);
-					['ping', 'ssh', 'web'].forEach(svc => {
+					const sysTh = document.createElement('th'); 
+					sysTh.textContent = system.display_name || system.name; 
+					tr.appendChild(sysTh);
+					
+					// For each service type, check if this system has it
+					Array.from(serviceTypes).forEach(serviceName => {
 						const td = document.createElement('td');
-						const key = `${u}${svc}`; // e.g., ubuntu1ping
-						const svcObj = (scores[teamKey] || {})[key];
-						const errStr = String(svcObj ? svcObj.error : 'Not tested');
-						if (errStr === 'Success') {
-							td.className = 'ok';
-							td.textContent = 'Success';
-						} else if (errStr === 'Not tested') {
-							td.className = 'unknown';
-							td.textContent = 'Not tested';
+						
+						if (system.services.includes(serviceName)) {
+							const key = `${system.name}${serviceName}`; // e.g., ubuntu1ping
+							const svcObj = (scores[teamKey] || {})[key];
+							const errStr = String(svcObj ? svcObj.error : 'Not tested');
+							if (errStr === 'Success') {
+								td.className = 'ok';
+								td.textContent = 'Success';
+							} else if (errStr === 'Not tested') {
+								td.className = 'unknown';
+								td.textContent = 'Not tested';
+							} else {
+								td.className = 'fail';
+								td.textContent = 'Fail';
+								const detail = document.createElement('span');
+								detail.className = 'error-detail';
+								const snippet = errStr.slice(0, 120);
+								detail.textContent = snippet + (errStr.length > 120 ? '…' : '');
+								td.appendChild(detail);
+								td.title = errStr;
+							}
 						} else {
-							td.className = 'fail';
-							td.textContent = 'Fail';
-							const detail = document.createElement('span');
-							detail.className = 'error-detail';
-							const snippet = errStr.slice(0, 120);
-							detail.textContent = snippet + (errStr.length > 120 ? '…' : '');
-							td.appendChild(detail);
-							td.title = errStr;
+							// System doesn't have this service
+							td.className = 'unknown';
+							td.textContent = 'N/A';
 						}
 						tr.appendChild(td);
 					});

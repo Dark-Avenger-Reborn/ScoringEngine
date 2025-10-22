@@ -8,12 +8,14 @@ This scoring engine is designed for team-based competitions where participants c
 
 ### Features
 
-- **Real-time Scoring**: Automated testing every 40 seconds
+- **Real-time Scoring**: Automated testing every 40 seconds (configurable)
 - **Multi-Service Testing**: Tests ping connectivity, SSH access, and web servers
 - **Live Leaderboard**: WebSocket-based real-time score updates
 - **Team Configuration**: Each team can customize their service credentials and ports
 - **Thread-Safe**: Concurrent testing with proper file locking mechanisms
 - **Web Interface**: Clean, responsive UI with live updates
+- **Centralized Configuration**: Easy-to-manage master configuration for teams and systems
+- **Scalable**: Add new teams and systems by editing a single configuration file
 
 ## Architecture
 
@@ -22,12 +24,23 @@ This scoring engine is designed for team-based competitions where participants c
 - **Flask Application** (`main.py`): Main web server handling routes and authentication
 - **Grader Module** (`grader.py`): Core grading logic with threaded testing
 - **Service Tester** (`test_services.py`): Service validation methods (ping, SSH, HTTP)
+- **Config Loader** (`config_loader.py`): Centralized configuration management utility
 - **Socket.IO**: Real-time score broadcasting to connected clients
 - **Eventlet**: Green threading for efficient concurrent connections
 
+### Configuration System
+
+The new centralized configuration system uses a single `master_config.json` file that defines:
+- **Teams**: Names, IDs, passwords, and network subnets
+- **Systems**: Monitored systems with their IP offsets and services
+- **Services**: Service definitions with timeouts, points, and default settings
+- **Grading**: Interval timing and concurrency settings
+
+This makes it extremely easy to scale by adding new teams or systems - just edit one file!
+
 ### Tested Services
 
-Each team has two Ubuntu instances (10.0.{team}.20 and 10.0.{team}.30) with:
+Each team has multiple Ubuntu instances (configurable) with:
 - **Ping**: Network connectivity test
 - **SSH**: Secure shell access verification
 - **Web**: HTTP server availability check
@@ -53,28 +66,143 @@ cd ScoringEngine
 pip3 install -r requirements.txt
 ```
 
-3. Configure team credentials in `config.json`:
+3. Create `master_config.json` (the main configuration file):
 ```json
 {
-    "Team1": "password1",
-    "Team2": "password2"
+  "teams": [
+    {
+      "name": "Team1",
+      "id": "team1",
+      "password": "changeme",
+      "subnet": "10.0.1.0/24"
+    },
+    {
+      "name": "Team2",
+      "id": "team2",
+      "password": "changeme",
+      "subnet": "10.0.2.0/24"
+    }
+  ],
+  "systems": [
+    {
+      "name": "ubuntu1",
+      "display_name": "Ubuntu Server 1",
+      "ip_offset": 20,
+      "services": ["ping", "ssh", "web"]
+    },
+    {
+      "name": "ubuntu2",
+      "display_name": "Ubuntu Server 2",
+      "ip_offset": 30,
+      "services": ["ping", "ssh", "web"]
+    }
+  ],
+  "services": {
+    "ping": {
+      "name": "Ping",
+      "display_name": "Network Connectivity",
+      "points": 10,
+      "timeout": 20
+    },
+    "ssh": {
+      "name": "SSH",
+      "display_name": "SSH Service",
+      "points": 10,
+      "timeout": 20,
+      "default_username": "sysadmin",
+      "default_password": "changeme",
+      "default_port": 22
+    },
+    "web": {
+      "name": "Web",
+      "display_name": "Web Service",
+      "points": 10,
+      "timeout": 20,
+      "default_port": 80
+    }
+  },
+  "grading": {
+    "interval_seconds": 40,
+    "concurrent_threads": true
+  }
 }
 ```
 
-4. (Optional) Customize team service configurations in `team_configs.json`:
+4. Start the server:
+```bash
+python3 main.py
+```
+
+The server will automatically generate `config.json` and `team_configs.json` from your `master_config.json` on startup.
+
+## Understanding the Configuration Files
+
+- **`master_config.json`** - **YOU EDIT THIS**: Single source of truth for teams, systems, and services
+- **`config.json`** - Auto-generated at startup from `master_config.json` for login credentials
+- **`team_configs.json`** - Auto-generated at startup, but **teams can customize their own section** via `/config`
+- **`scores.json`** - Auto-generated, tracks live scores (reset on startup)
+
+## Adding Teams and Systems
+
+### Adding a New Team
+
+Simply add a new entry to the `teams` array in `master_config.json`:
+
 ```json
 {
-    "team1": {
-        "ubuntu1": {
-            "ssh": {"username": "sysadmin", "password": "changeme", "port": 22},
-            "web": {"port": 80}
-        },
-        "ubuntu2": {
-            "ssh": {"username": "sysadmin", "password": "changeme", "port": 22},
-            "web": {"port": 80}
-        }
-    },
-    "team2": { /* similar structure */ }
+  "name": "Team3",
+  "id": "team3",
+  "password": "newpassword",
+  "subnet": "10.0.3.0/24"
+}
+```
+
+Then restart the application. The system will automatically:
+- Create login credentials
+- Generate initial scores
+- Set up team configurations for all systems
+- Start monitoring all services
+
+### Adding a New System
+
+Add a new entry to the `systems` array in `master_config.json`:
+
+```json
+{
+  "name": "ubuntu3",
+  "display_name": "Ubuntu Server 3",
+  "ip_offset": 40,
+  "services": ["ping", "ssh", "web"]
+}
+```
+
+The IP address will be automatically calculated as `10.0.{team_number}.{ip_offset}`.
+For example, Team1's ubuntu3 will be at `10.0.1.40`.
+
+### Changing Service Points or Timeouts
+
+Edit the corresponding service in the `services` section:
+
+```json
+"ssh": {
+  "name": "SSH",
+  "display_name": "SSH Service",
+  "points": 15,        // Changed from 10
+  "timeout": 30,       // Changed from 20
+  "default_username": "sysadmin",
+  "default_password": "changeme",
+  "default_port": 22
+}
+```
+
+### Changing Grading Interval
+
+Modify the `grading` section:
+
+```json
+"grading": {
+  "interval_seconds": 60,  // Changed from 40
+  "concurrent_threads": true
 }
 ```
 
@@ -131,16 +259,29 @@ The server will start on `http://0.0.0.0:5000`
 
 ## Configuration Files
 
-### `config.json`
-Team login credentials (username → password mapping)
+### `master_config.json` (Primary Configuration - Edit This!)
+**This is the main configuration file that you (the admin) edit.** All teams, systems, and services are defined here.
 
-### `team_configs.json`
-Service-specific settings for each team:
-- SSH username, password, and port
-- Web server port
+Structure:
+- `teams`: Array of team definitions (name, id, password, subnet)
+- `systems`: Array of systems to monitor (name, display_name, ip_offset, services)
+- `services`: Object defining service types (ping, ssh, web) with their settings
+- `grading`: Grading interval and threading options
 
-### `scores.json`
-Live scoring data (auto-generated, reset on server start)
+**When you add a team or system here and restart the server, everything else is automatically configured.**
+
+### `config.json` (Auto-generated - Don't Edit)
+Auto-generated from `master_config.json` at startup. Contains team login credentials for Flask authentication.
+
+### `team_configs.json` (Auto-generated, but Teams Can Edit Their Section)
+Initially generated from `master_config.json` at startup with default values. Teams can then customize **their own section only** via the web interface at `/config` to change:
+- SSH usernames, passwords, and ports
+- Web server ports
+
+This allows teams to configure their services without affecting other teams.
+
+### `scores.json` (Auto-generated - Don't Edit)
+Live scoring data. Automatically generated and reset on each server start.
 
 ## Development
 
@@ -151,10 +292,12 @@ Live scoring data (auto-generated, reset on server start)
 ├── main.py                 # Flask application & routes
 ├── grader.py              # Grading logic & scoring
 ├── test_services.py       # Service testing utilities
+├── config_loader.py       # Centralized config management
 ├── requirements.txt       # Python dependencies
-├── config.json           # Team credentials
-├── team_configs.json     # Service configurations
-├── scores.json           # Live scores (generated)
+├── master_config.json     # Master configuration (EDIT THIS!)
+├── config.json           # Team credentials (auto-generated)
+├── team_configs.json     # Service configurations (auto-generated, teams can edit)
+├── scores.json           # Live scores (auto-generated)
 ├── templates/            # HTML templates
 │   ├── index.html       # Team dashboard
 │   ├── leaderboard.html # Public scoreboard

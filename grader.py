@@ -4,6 +4,7 @@ import json
 import math
 import threading
 import os
+from config_loader import get_config_loader
 
 # Use a module-level lock to serialize read/write access to scores.json
 # This prevents the common race where one thread truncates the file to write
@@ -12,9 +13,6 @@ import os
 _scores_file_lock = threading.Lock()
 
 grading_cycle_count = 0
-
-def first_n_digits(num, n):
-    return num // 10 ** (int(math.log(num, 10)) - n + 1)
 
 class Grader:
     def __init__(self, sio):
@@ -25,25 +23,12 @@ class Grader:
         self.is_grading = False
         # Initialize instance-level cycle counter mirror
         self.grading_cycle_count = 0
-
-        initial = {
-            "team1": {
-                "ubuntu1ping": {"error": "Not tested", "score": 0},
-                "ubuntu2ping": {"error": "Not tested", "score": 0},
-                "ubuntu1ssh": {"error": "Not tested", "score": 0},
-                "ubuntu2ssh": {"error": "Not tested", "score": 0},
-                "ubuntu1web": {"error": "Not tested", "score": 0},
-                "ubuntu2web": {"error": "Not tested", "score": 0},
-            },
-            "team2": {
-                "ubuntu1ping": {"error": "Not tested", "score": 0},
-                "ubuntu2ping": {"error": "Not tested", "score": 0},
-                "ubuntu1ssh": {"error": "Not tested", "score": 0},
-                "ubuntu2ssh": {"error": "Not tested", "score": 0},
-                "ubuntu1web": {"error": "Not tested", "score": 0},
-                "ubuntu2web": {"error": "Not tested", "score": 0},
-            },
-        }
+        
+        # Load centralized configuration
+        self.config_loader = get_config_loader()
+        
+        # Generate initial scores from master config
+        initial = self.config_loader.generate_initial_scores()
 
         with _scores_file_lock:
             # If file doesn't exist or is empty/invalid, write the initial
@@ -90,24 +75,7 @@ class Grader:
                     scores = json.load(score_file)
             except (FileNotFoundError, json.JSONDecodeError):
                 # Recreate the initial structure if missing or invalid.
-                scores = {
-                    "team1": {
-                        "ubuntu1ping": {"error": "Not tested", "score": 0},
-                        "ubuntu2ping": {"error": "Not tested", "score": 0},
-                        "ubuntu1ssh": {"error": "Not tested", "score": 0},
-                        "ubuntu2ssh": {"error": "Not tested", "score": 0},
-                        "ubuntu1web": {"error": "Not tested", "score": 0},
-                        "ubuntu2web": {"error": "Not tested", "score": 0},
-                    },
-                    "team2": {
-                        "ubuntu1ping": {"error": "Not tested", "score": 0},
-                        "ubuntu2ping": {"error": "Not tested", "score": 0},
-                        "ubuntu1ssh": {"error": "Not tested", "score": 0},
-                        "ubuntu2ssh": {"error": "Not tested", "score": 0},
-                        "ubuntu1web": {"error": "Not tested", "score": 0},
-                        "ubuntu2web": {"error": "Not tested", "score": 0},
-                    },
-                }
+                scores = self.config_loader.generate_initial_scores()
 
             # Defensive checks in case keys are missing
             if team not in scores:
@@ -145,51 +113,58 @@ class Grader:
                 main.app.grading_cycle_count = grading_cycle_count
         except Exception as err:
             print(err)
+        
         services = Services()
         thread_list = []
+        
         # Load team configuration for this grading cycle
         try:
             with open("team_configs.json", "r") as f:
                 team_cfg = json.load(f)
         except Exception:
-            # Fallback to reasonable defaults with new structure
-            team_cfg = {
-                "team1": {
-                    "ubuntu1": {"ssh": {"username": "sysadmin", "password": "changeme", "port": 22}, "web": {"port": 80}},
-                    "ubuntu2": {"ssh": {"username": "sysadmin", "password": "changeme", "port": 22}, "web": {"port": 80}},
-                },
-                "team2": {
-                    "ubuntu1": {"ssh": {"username": "sysadmin", "password": "changeme", "port": 22}, "web": {"port": 80}},
-                    "ubuntu2": {"ssh": {"username": "sysadmin", "password": "changeme", "port": 22}, "web": {"port": 80}},
-                },
-            }
+            # Fallback to generated defaults from master config
+            team_cfg = self.config_loader.generate_team_configs()
 
-        for team in [1, 2]:
-            team_key = f"team{team}"
-            for service in ["ping", "ssh", "web"]:
-                for instance in [20, 30]:
-                    # Map instance IP last octet to ubuntu1 (20) or ubuntu2 (30)
-                    ubuntu_key = "ubuntu1" if instance == 20 else "ubuntu2"
-                    ubuntu_cfg = team_cfg.get(team_key, {}).get(ubuntu_key, {})
-                    
-                    ssh_user = ubuntu_cfg.get("ssh", {}).get("username", "sysadmin")
-                    ssh_pass = ubuntu_cfg.get("ssh", {}).get("password", "changeme")
-                    ssh_port = ubuntu_cfg.get("ssh", {}).get("port", 22)
-                    web_port = ubuntu_cfg.get("web", {}).get("port", 80)
-                    
-                    ip = f"10.0.{team}.{instance}"
-                    if service == "ssh":
-                        t = threading.Thread(target=self.grade_ssh, args=(team, ssh_user, ssh_pass, ssh_port, ip, instance, services))
-                    elif service == "ping":
-                        t = threading.Thread(target=self.grade_ping, args=(team, ip, instance, services))
-                    elif service == "web":
-                        t = threading.Thread(target=self.grade_web, args=(team, web_port, ip, instance, services))
-                    else:
-                        t = None
+        # Get all test scenarios from centralized config
+        scenarios = self.config_loader.get_all_test_scenarios()
+        
+        for scenario in scenarios:
+            team_id = scenario['team_id']
+            system_name = scenario['system_name']
+            service_name = scenario['service_name']
+            ip_address = scenario['ip_address']
+            
+            # Get team-specific config overrides
+            system_cfg = team_cfg.get(team_id, {}).get(system_name, {})
+            
+            # Create appropriate grading thread based on service type
+            if service_name == "ssh":
+                ssh_user = system_cfg.get("ssh", {}).get("username", scenario['ssh']['default_username'])
+                ssh_pass = system_cfg.get("ssh", {}).get("password", scenario['ssh']['default_password'])
+                ssh_port = system_cfg.get("ssh", {}).get("port", scenario['ssh']['default_port'])
+                
+                t = threading.Thread(
+                    target=self.grade_ssh,
+                    args=(team_id, ssh_user, ssh_pass, ssh_port, ip_address, scenario['score_key'], scenario['points'], services)
+                )
+            elif service_name == "ping":
+                t = threading.Thread(
+                    target=self.grade_ping,
+                    args=(team_id, ip_address, scenario['score_key'], scenario['points'], services)
+                )
+            elif service_name == "web":
+                web_port = system_cfg.get("web", {}).get("port", scenario['web']['default_port'])
+                
+                t = threading.Thread(
+                    target=self.grade_web,
+                    args=(team_id, web_port, ip_address, scenario['score_key'], scenario['points'], services)
+                )
+            else:
+                t = None
 
-                    if t is not None:
-                        t.start()
-                        thread_list.append(t)
+            if t is not None:
+                t.start()
+                thread_list.append(t)
 
         for thread in thread_list:
             thread.join()
@@ -207,25 +182,24 @@ class Grader:
             pass
         self.is_grading = False
 
-
-    def grade_ssh(self, team, username, password, port, ip, instance, services):
+    def grade_ssh(self, team_id, username, password, port, ip, score_key, points, services):
         result = services.ssh_connection(username, password, ip, port=port)
         if result[0]:
-            self.append_scores(f"team{team}", f"ubuntu{first_n_digits(instance, 1)-1}ssh", "Success", 10)
+            self.append_scores(team_id, score_key, "Success", points)
         else:
-            self.append_scores(f"team{team}", f"ubuntu{first_n_digits(instance, 1)-1}ssh", result[1], 0)
+            self.append_scores(team_id, score_key, result[1], 0)
 
-    def grade_ping(self, team, ip, instance, services):
+    def grade_ping(self, team_id, ip, score_key, points, services):
         result = services.ping_host(ip)
         if result[0]:
-            self.append_scores(f"team{team}", f"ubuntu{first_n_digits(instance, 1)-1}ping", "Success", 10)
+            self.append_scores(team_id, score_key, "Success", points)
         else:
-            self.append_scores(f"team{team}", f"ubuntu{first_n_digits(instance, 1)-1}ping", result[1], 0)
+            self.append_scores(team_id, score_key, result[1], 0)
 
-    def grade_web(self, team, port, ip, instance, services):
+    def grade_web(self, team_id, port, ip, score_key, points, services):
         url = f"http://{ip}:{port}"
         result = services.web_request(url)
         if result[0]:
-            self.append_scores(f"team{team}", f"ubuntu{first_n_digits(instance, 1)-1}web", "Success", 10)
+            self.append_scores(team_id, score_key, "Success", points)
         else:
-            self.append_scores(f"team{team}", f"ubuntu{first_n_digits(instance, 1)-1}web", result[1], 0)
+            self.append_scores(team_id, score_key, result[1], 0)
