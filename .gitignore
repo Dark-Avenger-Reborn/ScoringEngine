@@ -1,2 +1,4 @@
 /.pytest_cache
 /__pycache__
+scores.json
+team_config.json
