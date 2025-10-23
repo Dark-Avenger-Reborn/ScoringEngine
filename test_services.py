@@ -46,7 +46,7 @@ class Services:
 
     def ping_host(self, ip):
         try:
-            response = subprocess.run(['ping', '-c', '4', ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, timeout=20)
+            response = subprocess.run(f"ping -c 4 {ip}", stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, timeout=20)
             if response.returncode == 0:
                 return (True, response.stdout.decode())
             return (False, response.stderr.decode())
