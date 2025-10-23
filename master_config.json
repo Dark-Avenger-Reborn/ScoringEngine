@@ -27,7 +27,7 @@
       "services": ["ping", "ssh", "web"]
     },
     {
-      "name": "windows",
+      "name": "windows1",
       "display_name": "Windows Server 1",
       "ip_offset": 40,
       "services": ["ping", "active_directory"]
@@ -36,7 +36,7 @@
   "services": {
     "ping": {
       "name": "Ping",
-      "display_name": "Network Connectivity",
+      "display_name": " Ping/ICMP",
       "points": 10,
       "timeout": 20
     },
