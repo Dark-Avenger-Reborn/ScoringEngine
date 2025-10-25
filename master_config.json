@@ -28,9 +28,9 @@
     },
     {
       "name": "windows1",
-      "display_name": "Windows Server 1",
+      "display_name": "Windows 1",
       "ip_offset": 40,
-      "services": ["ping", "active_directory"]
+      "services": ["ping", "ssh"]
     }
   ],
   "services": {
