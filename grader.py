@@ -145,7 +145,7 @@ class Grader:
                 
                 t = threading.Thread(
                     target=self.grade_ssh,
-                    args=(team_id, ssh_user, ssh_pass, ssh_port, ip_address, scenario['score_key'], scenario['points'], services)
+                    args=(team_id, ssh_user, ssh_pass, ssh_port, ip_address, system_name, scenario['score_key'], scenario['points'], services)
                 )
             elif service_name == "ping":
                 t = threading.Thread(
@@ -191,8 +191,11 @@ class Grader:
             pass
         self.is_grading = False
 
-    def grade_ssh(self, team_id, username, password, port, ip, score_key, points, services):
-        result = services.ssh_connection(username, password, ip, port=port)
+    def grade_ssh(self, team_id, username, password, port, ip, system_name, score_key, points, services):
+        # Determine OS based on system name from master config
+        detected_os = "linux" if "ubuntu" in system_name.lower() else "windows"
+        
+        result = services.ssh_connection(username, password, ip, detected_os, port=port)
         if result[0]:
             self.append_scores(team_id, score_key, "Success", points)
         else:

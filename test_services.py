@@ -17,15 +17,20 @@ class Services:
     def increment_grading_cycle(self):
         self.grading_cycle_count += 1  # Increment the grading cycle counter
 
-    def ssh_connection(self, username, password, ip, port=22):
+    def ssh_connection(self, username, password, ip, os, port=22):
         try:
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             client.connect(ip, port=port, username=username, password=password, timeout=20)
 
-            stdin, stdout, stderr = client.exec_command('ls')
-            output = stdout.read().decode()
-            error = stderr.read().decode()
+            if os == "windows":
+                stdin, stdout, stderr = client.exec_command('dir')
+                output = stdout.read().decode()
+                error = stderr.read().decode()
+            else:
+                stdin, stdout, stderr = client.exec_command('ls')
+                output = stdout.read().decode()
+                error = stderr.read().decode()
             
             client.close()
 
